@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import sqlite3
+import subprocess
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -4608,6 +4609,27 @@ class OpenCodeCLIProvider:
     supports_tools = False
     supports_vision = False
 
+    # `--standalone` exists on OpenCode v2.x only — and there it is REQUIRED
+    # (v2 attaches to the shared background service and inherits the user's
+    # interactive session context). v1.x `run` already boots its own server on
+    # a random port and treats --standalone as an unknown flag (usage error).
+    # Detected once per binary via `run --help`.
+    _STANDALONE_CACHE: dict[str, bool] = {}
+
+    @classmethod
+    def _supports_standalone(cls, bin_path: str) -> bool:
+        if bin_path not in cls._STANDALONE_CACHE:
+            try:
+                proc = subprocess.run(
+                    [bin_path, "run", "--help"],
+                    capture_output=True, timeout=60,
+                )
+                out = proc.stdout + proc.stderr
+                cls._STANDALONE_CACHE[bin_path] = b"--standalone" in out
+            except Exception:
+                cls._STANDALONE_CACHE[bin_path] = False
+        return cls._STANDALONE_CACHE[bin_path]
+
     def __init__(
         self,
         *,
@@ -4650,12 +4672,12 @@ class OpenCodeCLIProvider:
     ) -> ProviderCallResult:
         system, transcript = _flatten_messages_to_prompt(messages)
         prompt = f"{system}\n\n{transcript}" if system else transcript
-        argv = [
-            self._bin_path, "run",
-            # Private server: the shared background service holds the user's
-            # interactive sessions — without --standalone a run can pick up that
-            # context (verified 2026-10-11: the model answered "your script…").
-            "--standalone",
+        argv = [self._bin_path, "run"]
+        # v2.x only: private server (see _supports_standalone). v1.x boots its
+        # own server per run and rejects the flag with a usage error.
+        if self._supports_standalone(self._bin_path):
+            argv.append("--standalone")
+        argv += [
             "--format", "json",
             "--model", self._model,
             # No --auto: headless runs must NOT auto-approve tool permissions.
