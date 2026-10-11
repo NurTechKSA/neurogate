@@ -4581,3 +4581,148 @@ class ClaudeCLIProvider:
     async def chat_stream(self, **_: Any) -> AsyncIterator[bytes]:
         raise NotImplementedError(f"{self.name} is print-only (no streaming in v1)")
         yield b""  # pragma: no cover — keeps function as async generator
+
+
+class OpenCodeCLIProvider:
+    """Shells out to a locally-installed `opencode` CLI (`opencode run`).
+
+    Serves OpenCode Zen's rotating free models (`*-free`, `big-pickle`, …). The
+    Zen HTTP API is walled — `403 FreeTierError: "OpenCode's free tier can only
+    be used from within OpenCode"` — but the CLI *is* OpenCode, so the same
+    models answer from a terminal (verified 2026-10-11: `opencode run -m
+    opencode/muse-spark-1.3-contributor-free` → 200 with RU text). No account
+    required; `opencode auth` login raises the free-tier limits.
+
+    ⚠️ Free models: "data may be used to improve the model" — never route
+    sensitive content. The wall exists for personal use inside the client;
+    public re-serving may get rate-limited or walled at any time. Keep these
+    providers in chain tails.
+
+    v1 limitations (mirrors ClaudeCLIProvider): text-only, no streaming, no
+    tool calling, no vision. `temperature`/`max_tokens` silently ignored.
+    Every request spawns a fresh subprocess + fresh session (~1-3s cold start).
+    JSONL output is parsed for `{"type": "text"}` events (the agent may emit
+    several `step_start` events before the answer — all text parts are joined).
+    """
+
+    supports_tools = False
+    supports_vision = False
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        model: str,
+        bin_path: str = "opencode",
+        timeout: float = 300.0,
+        rpd: int | None = None,
+        rpm: int | None = None,
+        context_window: int | None = None,
+        max_output_tokens: int | None = None,
+        quality: int | None = None,
+        latency_s: float | None = None,
+        ru: int | None = None,
+        reasoning: bool = False,
+    ) -> None:
+        self.name = name
+        self._model = model
+        self._bin_path = bin_path
+        self._timeout = timeout
+        self.rpd = rpd
+        self.rpm = rpm
+        self.context_window = context_window
+        self.max_output_tokens = max_output_tokens
+        self.quality = quality
+        self.latency_s = latency_s
+        self.ru = ru
+        self.reasoning = reasoning
+
+    async def chat(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        temperature: float | None,
+        max_tokens: int | None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        request_extras: dict[str, Any] | None = None,
+        web_search: bool = False,
+    ) -> ProviderCallResult:
+        system, transcript = _flatten_messages_to_prompt(messages)
+        prompt = f"{system}\n\n{transcript}" if system else transcript
+        argv = [
+            self._bin_path, "run",
+            # Private server: the shared background service holds the user's
+            # interactive sessions — without --standalone a run can pick up that
+            # context (verified 2026-10-11: the model answered "your script…").
+            "--standalone",
+            "--format", "json",
+            "--model", self._model,
+            # No --auto: headless runs must NOT auto-approve tool permissions.
+            prompt,
+        ]
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *argv,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError(f"{self.name} server error: {e}") from e
+
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=self._timeout,
+            )
+        except asyncio.TimeoutError:
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+            await proc.wait()
+            raise RuntimeError(f"{self.name} timeout after {self._timeout}s")
+
+        if proc.returncode != 0:
+            err = stderr.decode("utf-8", errors="replace")[:400]
+            if re.search(r"not authenticated|unauthorized|login", err, re.I):
+                raise RuntimeError(f"{self.name} auth: {err[:200]}")
+            if re.search(r"rate.?limit|too many requests|429|FreeTierError", err, re.I):
+                raise RuntimeError(f"{self.name} rate limit: {err[:200]}")
+            raise RuntimeError(
+                f"{self.name} server error: rc={proc.returncode}: {err[:200]}"
+            )
+
+        texts: list[str] = []
+        for line in stdout.decode("utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line or not line.startswith("{"):
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("type") == "error":
+                detail = event.get("error") or event.get("part") or event
+                raise RuntimeError(f"{self.name} server error: {str(detail)[:200]}")
+            if event.get("type") == "text":
+                part = event.get("part") or {}
+                chunk = (part.get("text") or "").strip()
+                if chunk:
+                    texts.append(chunk)
+
+        text = "\n".join(texts).strip()
+        if not text:
+            raise RuntimeError(f"{self.name} empty response")
+
+        # `opencode run --format json` exposes no token usage — counters stay 0.
+        return ProviderCallResult(
+            text=text,
+            prompt_tokens=0,
+            completion_tokens=0,
+            cached_tokens=0,
+            finish_reason="stop",
+        )
+
+    async def chat_stream(self, **_: Any) -> AsyncIterator[bytes]:
+        raise NotImplementedError(f"{self.name} is run-only (no streaming in v1)")
+        yield b""  # pragma: no cover — keeps function as async generator

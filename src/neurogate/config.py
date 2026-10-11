@@ -33,6 +33,7 @@ from neurogate.providers import (
     OpenAICompatProvider,
     OpenAIEmbedProvider,
     OpenAIModerationProvider,
+    OpenCodeCLIProvider,
     PollinationsImageProvider,
     Provider,
     RerankProvider,
@@ -46,7 +47,7 @@ from neurogate.providers import (
 #   libretranslate — most public mirrors (fedilab, self-hosted) accept no auth
 #   mymemory — 5000 chars/day anonymous, 50000 с contact email (не ключом)
 #   aihorde — anonymous через apikey="0000000000" (community-distributed inference)
-_NO_API_KEY_KINDS = {"edge_tts", "libretranslate", "mymemory", "aihorde", "hf_space_audio", "ovhcloud", "claude_cli", "opencode"}
+_NO_API_KEY_KINDS = {"edge_tts", "libretranslate", "mymemory", "aihorde", "hf_space_audio", "ovhcloud", "claude_cli", "opencode", "opencode_cli"}
 
 # Kinds that don't have a model concept (single-purpose services). `model` поле
 # в yaml для них опциональное — у провайдера свой дефолт или оно не применимо.
@@ -503,6 +504,36 @@ def _build_provider(
             model=model or "sonnet",
             bin_path=bin_path,
             timeout=float(entry.get("timeout", 180.0)),
+            rpd=rpd,
+            rpm=rpm,
+            context_window=context_window,
+            max_output_tokens=max_output_tokens,
+            quality=quality,
+            latency_s=latency_s,
+            ru=ru,
+            reasoning=reasoning,
+        )
+
+    if kind == "opencode_cli":
+        # Shells out to a locally-installed `opencode` binary (`opencode run`).
+        # Serves OpenCode Zen free models; the Zen HTTP API is walled
+        # (403 FreeTierError) but the CLI passes the "from within OpenCode" gate.
+        # No API key; skipped on hosts where the binary isn't on PATH — no error.
+        bin_path = entry.get("bin_path") or os.getenv("NEUROGATE_OPENCODE_CLI_PATH") or "opencode"
+        if not shutil.which(bin_path):
+            log.warning(
+                "skipping %s: opencode binary not found at %s "
+                "(install OpenCode or set NEUROGATE_OPENCODE_CLI_PATH)",
+                name, bin_path,
+            )
+            if skipped is not None:
+                skipped.append(SkippedProvider(name, kind, "missing_binary", "NEUROGATE_OPENCODE_CLI_PATH"))
+            return None
+        return OpenCodeCLIProvider(
+            name=name,
+            model=model or "opencode/big-pickle",
+            bin_path=bin_path,
+            timeout=float(entry.get("timeout", 300.0)),
             rpd=rpd,
             rpm=rpm,
             context_window=context_window,
