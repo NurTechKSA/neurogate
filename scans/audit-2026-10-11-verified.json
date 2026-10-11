@@ -1,0 +1,164 @@
+[
+  {
+    "name": "openrouter:inclusionai/ling-3.1-flash",
+    "kind": "openrouter",
+    "model": "inclusionai/ling-3.1-flash",
+    "status": "rejected_http",
+    "http_code": 403,
+    "detail": "openrouter:inclusionai/ling-3.1-flash HTTP 403: {\"error\":{\"message\":\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/[key-id redacted] $0.00 of $0.00 used; does not reset.\",\"code\":403,\"metadata\":{\"limit_source\":\"openrouter_key_limit\",\"remedy_hint\":\"Raise or remove this API key's usage limit at https://op",
+    "identity_reply": ""
+  },
+  {
+    "name": "openrouter:apodex/apodex-1.1-mini:free",
+    "kind": "openrouter",
+    "model": "apodex/apodex-1.1-mini:free",
+    "status": "error",
+    "http_code": null,
+    "detail": "openrouter:apodex/apodex-1.1-mini:free empty response",
+    "identity_reply": ""
+  },
+  {
+    "name": "openrouter:thinkingmachines/inkling-small:free",
+    "kind": "openrouter",
+    "model": "thinkingmachines/inkling-small:free",
+    "status": "rejected_http",
+    "http_code": 403,
+    "detail": "openrouter:thinkingmachines/inkling-small:free HTTP 403: {\"error\":{\"message\":\"thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps\",\"code\":403,\"metadata\":{\"routing_funnel\":[{\"step\":\"Initial Endpoints\",\"endpoint_count\":1}],\"failed_routing_step\":\"Gate Free Endpoints by Agentic Harness\"",
+    "identity_reply": ""
+  },
+  {
+    "name": "openrouter:thinkingmachines/inkling:free",
+    "kind": "openrouter",
+    "model": "thinkingmachines/inkling:free",
+    "status": "rejected_http",
+    "http_code": 403,
+    "detail": "openrouter:thinkingmachines/inkling:free HTTP 403: {\"error\":{\"message\":\"thinkingmachines/inkling:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps\",\"code\":403,\"metadata\":{\"routing_funnel\":[{\"step\":\"Initial Endpoints\",\"endpoint_count\":1}],\"failed_routing_step\":\"Gate Free Endpoints by Agentic Harness\"}}}",
+    "identity_reply": ""
+  },
+  {
+    "name": "openrouter:nvidia/nemotron-3.5-content-safety:free",
+    "kind": "openrouter",
+    "model": "nvidia/nemotron-3.5-content-safety:free",
+    "status": "error",
+    "http_code": null,
+    "detail": "openrouter:nvidia/nemotron-3.5-content-safety:free empty response",
+    "identity_reply": ""
+  },
+  {
+    "name": "cerebras:qwen-3.8-27b",
+    "kind": "cerebras",
+    "model": "qwen-3.8-27b",
+    "status": "rejected_http",
+    "http_code": 402,
+    "detail": "cerebras:qwen-3.8-27b HTTP 402: {\"message\":\"Payment required to access this resource. Visit your billing tab.\",\"type\":\"payment_required_error\",\"param\":\"quota\",\"code\":\"payment_required\"}",
+    "identity_reply": ""
+  },
+  {
+    "name": "sambanova:MiniMax-M3",
+    "kind": "sambanova",
+    "model": "MiniMax-M3",
+    "status": "rejected_http",
+    "http_code": 401,
+    "detail": "sambanova:MiniMax-M3 HTTP 401: {\"error\":{\"message\":\"Incorrect API key provided: [key redacted].\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_api_key\"},\"request_id\":\"db5q80pgldmg0f1dah00\"}\n",
+    "identity_reply": ""
+  },
+  {
+    "name": "sambanova:gemma-4-31B-it",
+    "kind": "sambanova",
+    "model": "gemma-4-31B-it",
+    "status": "rejected_http",
+    "http_code": 401,
+    "detail": "sambanova:gemma-4-31B-it HTTP 401: {\"error\":{\"message\":\"Incorrect API key provided: [key redacted].\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_api_key\"},\"request_id\":\"db5q80pgldmg0f1dah0g\"}\n",
+    "identity_reply": ""
+  },
+  {
+    "name": "nvidia:deepseek-ai/deepseek-v4.1-flash",
+    "kind": "nvidia",
+    "model": "deepseek-ai/deepseek-v4.1-flash",
+    "status": "error",
+    "http_code": null,
+    "detail": "ReadTimeout('')",
+    "identity_reply": ""
+  },
+  {
+    "name": "nvidia:google/diffusiongemma-26b-a4b-it",
+    "kind": "nvidia",
+    "model": "google/diffusiongemma-26b-a4b-it",
+    "status": "rejected_identity",
+    "http_code": 200,
+    "detail": "identity mismatch (claimed vs reported)",
+    "identity_reply": "I am Gemma 4, a large language model developed by Google DeepMind."
+  },
+  {
+    "name": "nvidia:meta/muse-glimmer-30b",
+    "kind": "nvidia",
+    "model": "meta/muse-glimmer-30b",
+    "status": "error",
+    "http_code": null,
+    "detail": "nvidia:meta/muse-glimmer-30b empty response",
+    "identity_reply": ""
+  },
+  {
+    "name": "nvidia:nvidia/ising-calibration-1.5-31b",
+    "kind": "nvidia",
+    "model": "nvidia/ising-calibration-1.5-31b",
+    "status": "confirmed_unverified",
+    "http_code": 200,
+    "detail": "identity ambiguous — manual review",
+    "identity_reply": "I am NVIDIA Ising-Calibration-1.5, a vision-language model by NVIDIA fine-tuned from Gemma 4 for quantum calibration experiment analysis."
+  },
+  {
+    "name": "nvidia:nvidia/nemotron-3.5-content-safety",
+    "kind": "nvidia",
+    "model": "nvidia/nemotron-3.5-content-safety",
+    "status": "confirmed_unverified",
+    "http_code": 200,
+    "detail": "identity ambiguous — manual review",
+    "identity_reply": "User Safety: safe"
+  },
+  {
+    "name": "nvidia:z-ai/glm-5.3",
+    "kind": "nvidia",
+    "model": "z-ai/glm-5.3",
+    "status": "error",
+    "http_code": null,
+    "detail": "nvidia:z-ai/glm-5.3 empty response",
+    "identity_reply": ""
+  },
+  {
+    "name": "mistral:mistral-code-latest",
+    "kind": "mistral",
+    "model": "mistral-code-latest",
+    "status": "confirmed_unverified",
+    "http_code": 200,
+    "detail": "identity ambiguous — manual review",
+    "identity_reply": "I'm a model from Mistral AI, and my version is Mistral Large Latest."
+  },
+  {
+    "name": "mistral:mistral-code-fim-latest",
+    "kind": "mistral",
+    "model": "mistral-code-fim-latest",
+    "status": "confirmed_unverified",
+    "http_code": 200,
+    "detail": "identity ambiguous — manual review",
+    "identity_reply": "I'm a model from Mistral AI, and my version is Mistral Large Latest."
+  },
+  {
+    "name": "mistral:labs-leanstral-1-5-1",
+    "kind": "mistral",
+    "model": "labs-leanstral-1-5-1",
+    "status": "rejected_http",
+    "http_code": 403,
+    "detail": "mistral:labs-leanstral-1-5-1 HTTP 403: {\"object\":\"error\",\"message\":\"Model labs-leanstral-1-5-1 is a Labs model. To use Labs models, an admin must enable them in your organization settings at https://admin.mistral.ai/plateforme/privacy.\",\"type\":\"labs_not_enabled\",\"param\":null,\"code\":\"1913\",\"raw_status_code\":403}",
+    "identity_reply": ""
+  },
+  {
+    "name": "mistral:labs-leanstral-1-5",
+    "kind": "mistral",
+    "model": "labs-leanstral-1-5",
+    "status": "rejected_http",
+    "http_code": 403,
+    "detail": "mistral:labs-leanstral-1-5 HTTP 403: {\"object\":\"error\",\"message\":\"Model labs-leanstral-1-5 is a Labs model. To use Labs models, an admin must enable them in your organization settings at https://admin.mistral.ai/plateforme/privacy.\",\"type\":\"labs_not_enabled\",\"param\":null,\"code\":\"1913\",\"raw_status_code\":403}",
+    "identity_reply": ""
+  }
+]

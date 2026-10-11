@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 .env
 config.yaml
+config.yaml.bak*
+.vscode/
 deploy.md
 warnind.md
 SECURITY_AUDIT.md

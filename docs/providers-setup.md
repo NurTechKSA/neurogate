@@ -340,7 +340,7 @@
 |---|---|---|---|
 | **FreeTheAi** (6 записей) | 403 | `daily_checkin_required` | Discord → `/checkin`. Каждые 24ч, автоматизировать нельзя (см. §13) |
 | **SiliconFlow** (5) | 403 | «complete identity verification» | Пройти верификацию на cloud.siliconflow.cn либо забить |
-| **SambaNova** (5) | 402 | `balance_units: 0` | ⚠️ Это **не free-tier, а trial-кредиты** — сами не восстановятся. Либо платить, либо удалять |
+| **SambaNova** (5) | 401 | `invalid_api_key` — ключ отозван (было 402 balance) | См. статус на 2026-10-11. Требует перевыпуска ключа, без него записи мертвы |
 | **DeepSeek direct** (2) | 402 | Insufficient Balance | Top-up от $2 — **но не нужно**: V4-Pro и V4-Flash бесплатны через NIM |
 | **ModelScope** (2) | 401 | Токен отвергнут | См. §18 — низкий приоритет |
 | **Z.ai direct** | 429 | «Insufficient balance or no resource package» | GLM-5.2 бесплатна через NIM — чинить не обязательно |
@@ -357,7 +357,7 @@
 | `poolside:laguna-m.1`, `poolside:laguna-s-2.1` | ~2026-07-31 | Убраны из **прямого** API (404). Через шлюзы kilo/openrouter/opencode/nvidia модели живы |
 | `ollama:minimax-m2.5` | **2026-07-31** | retired |
 | `nvidia:nemotron-ultra-253b` | — | 404, снята с NIM |
-| `gemini-2.5-flash`, `2.5-flash-lite`, `2.5-pro` | **2026-10-16** | Google объявил shutdown — пока работают |
+| `gemini-2.5-flash`, `2.5-flash-lite`, `2.5-pro` | **2026-10-20** | См. статус на 2026-10-11 — дата спорная (Google Cloud/OpenRouter vs Gemini API), пока работают |
 
 **Поправки к таблице квот выше** (проверено живьём, в самой таблице ещё старые цифры):
 
@@ -368,6 +368,113 @@
 - **Cohere** — 1000 вызовов/мес это бакет на **весь ключ**, общий для chat + embed + rerank.
   Добавление новых `cohere:*` записей ёмкости не добавляет.
 - **GitHub Models** — строку можно удалять, платформы больше нет.
+
+## Состояние провайдеров на 2026-10-11
+
+Аудит через пайплайн `scans/audit_catalog.py` → `audit_verifier.py` (catalog diff по 7 вендорам,
+затем smoke + identity-пробы) плюс живые пробы остальных дверей. Апдейт с 2026-08-03.
+
+### Добавлено в конфиг (6 записей, все с живой пробой)
+
+| Запись | Что это | Проба 2026-10-11 |
+|---|---|---|
+| `nvidia:glm-5.3` | **Флагман GLM-5.3 бесплатно** — единственная дверь: z.ai direct PAYG ($1.40/$4.40), Cloudflare — Workers Paid | 3/3 OK, avg 213s (очень долгий thinker), RU отличный |
+| `nvidia:muse-glimmer-30b` | Meta **Muse** — новое семейство моделей Meta | 3/3 OK, avg 10.4s, RU чистый |
+| `nvidia:diffusiongemma-26b-a4b-it` | Gemma 4 на **diffusion-архитектуре** (не autoregressive) | 3/3 OK, avg 0.83s — самый быстрый NIM, RU чистый |
+| `openrouter:apodex-1.1-mini:free` | Новый вендор **Apodex** (бэкенд Novita), thinking-модель | 3/3 OK, avg 5.75s, RU чистый |
+| `gemini:3.1-flash-lite` | **Stable** (без `-preview`) — отдельный квотный бакет free-tier, не дубль | 3/3 OK, avg 6.4s, RU чистый |
+| `zai:glm-4.7-flash` | **Бесплатный** на прямом z.ai (наследник glm-4.5-flash) | 2/3 OK (1.6s / 43s + 429), RU чистый |
+
+Free-tier z.ai на 2026-10-07: **GLM-4.5-Flash / GLM-4.7-Flash / GLM-4.6V-Flash = $0**.
+GLM-5.3-Flash — платный ($0.15/$0.50), бесплатная дверь к нему — `nvidia:glm-5.3-flash`.
+
+### Выключено (мёртвые модели)
+
+| Что | Дата | Причина |
+|---|---|---|
+| `groq:qwen3.6-27b` | **2026-09-14** | EOL по deprecations Groq. Замена `groq:qwen3.8-27b` — уже в конфиге и цепочках |
+| `groq:compound`, `groq:compound-mini` | **2026-09-21** | Decommissioned, отдают 404 (проба 2026-10-11). Замены нет. Выведены из цепочек |
+| `sambanova:*` (3 в цепочках) | **2026-10-11** | `SAMBANOVA_API_KEY` → 401 `invalid_api_key`, ключ отозван. Выведены из всех цепочек. Вернуть только после перевыпуска ключа в console.sambanova.ai |
+
+### Gemini 2.5 — даты смерти спорные, ОСТАВЛЕНЫ
+
+`gemini:2.5-flash` / `2.5-flash-lite` на 2026-10-11 отвечают 200. Но:
+- **Google Cloud lifecycle + OpenRouter** (`expiration_date`) — retirement **2026-10-20**.
+- **Gemini API deprecations** — «No shutdown date announced», «served until further notice»,
+  но доступ **только для аккаунтов, кто уже юзал 2.5** (новые получают 404 «no longer available»).
+- Наш ключ старый → работает. Решили оставить (отдельные квотные бакеты free-tier),
+  router сам пропустит при 404. **Пересмотреть после 2026-10-20.**
+- `gemini-2.5-flash-image` (nano-banana): по Firebase release notes shutdown 2026-10-02,
+  но в каталоге Gemini API модель есть и лежит в `image_gen` хвостом — не трогали.
+
+### Внешние индексы — сверка 2026-10-11 (freellm.sh, free-llm-api-resources, OR blog)
+
+Разобраны три источника. Главный вывод: **списочникам доверять нельзя, всё проверялось вызовом** —
+и половина «новинок» либо chat-only, либо требует баланса/подписки, либо уже мертва.
+
+**[freellm.sh](https://freellm.sh/)** — живой индекс (163 модели, 18 провайдеров на 2026-10-11).
+Полезен как навигатор, но статусы у него отстают (например, `openrouter/free` помечен
+«Major outage», хотя жив; а `groq/compound` наоборот «Operational», хотя выключен 21.09).
+
+**[cheahjs/free-llm-api-resources](https://github.com/cheahjs/free-llm-api-resources)** — 29k звёзд,
+README генерится пайплайном из живых данных (править `src/README_template.md`, не README).
+`curl` с нашего хоста отдаёт 404 (блокировка), браузер/поиск видят. Упоминает страницу `/cheapest/`.
+
+**[OpenRouter blog «Free LLM APIs Compared»](https://openrouter.ai/blog/tutorials/free-llm-apis-compared/)**
+(обновлён 2026-09-24) — 13 платформ. Уже устарел в двух местах: **GitHub Models** там живой
+(закрыт 2026-07-30), **Cerebras** подан как free-tier (сейчас trial с картой, 402 у нас).
+Trial-кредиты, которых у нас нет: Baseten $30, AI21 $10, Fireworks $1, Nebius $1 — разовые,
+для конфига не интересны.
+
+Что реально новое из всех трёх источников:
+
+| Дверь | Статус 2026-10-11 | Что делать |
+|---|---|---|
+| **Zenmux `dots-studio/dots3-note-prev`** | ✅ **Добавлен** (`zenmux:dots3-note-prev`), проба 4.0s RU ok | Готов. Мультимодал: text+image+**video**+**audio** на входе, 393K ctx, reasoning |
+| **Zenmux: ещё 6 моделей $0** (`ling-3.1-flash`, `agnes-2.5-flash`, `ling-3.0-tiny`, `atria-dawn-preview`, `ming-image-0.1-design(-layer)`) | ⚠️ 402 `reject_no_credit` | **$0, но требуют баланс > $0 как анти-абус** («no credits will be deducted»). Разовый депозит ~$1 на zenmux.ai открывает все шесть бесплатно |
+| **OrcaRouter** (`orcarouter/free` + `z-ai/glm-5.3-flash-free`, `deepseek-v4-flash-free`, `tencent/hy3-free`, `hy4-preview-free`) | ⚠️ Нужен ключ `sk-orca-` (регистрация, без карты по докам) | Бесплатная дверь к **GLM-5.3-Flash** и free-роутер с difficulty-роутингом. `GET /api/free-package/public` — анонимный каталог free-id. Добавить после регистрации |
+| **Free.ai** (free.ai) | ⚠️ Каталог `/v1/models` анонимный (503 модели: chat/code/TTS/STT/OCR/image/video/3d), но chat POST → 403/405 | Интересно TTS (kokoro, chatterbox, cosyvoice2) и OCR — но крошечные пулы (анон ~2.5-6K токенов/день, с email 30K). Нужен отдельный kind — не трогали |
+| **OpenCode Zen free-модели** (`muse-spark-1.2/1.3-contributor-free`, `nemotron-3.5-lightning-free`, `ling-3.1-flash-free`, `mimo-v2.6-flash-free`, `step-5-preview-free`, `longcat-2.5-preview-free` …) | ❌ 403 `FreeTierError` | Free tier работает **только внутри клиента OpenCode**, внешнему HTTP отдаёт 403 (`exo-free` вообще 410 deprecated). kind `opencode` в конфиге остаётся без записей |
+| **B.AI** (chat.b.ai: `glm-5.3-flash`, `deepseek-v4-flash`, `hy3`, `mimo-v2.5`, `qwen3.8-flash`) | ❌ web-chat, без API | Бесплатный GLM-5.3-Flash в браузере, для шлюза не годится |
+| **Duck.ai** (claude-4.5-haiku, gpt-5.4-mini/nano, gemma-4-31b, gpt-oss-120b, mistral-small-4) | ❌ web-chat, без API | Приватный браузерный чат, some модели хостит Tinfoil.sh |
+| **Arena** (`arena.ai/direct`) | ❌ web-chat, промпты раскрываются провайдерам | Не для шлюза |
+| **KiosAPI** | ❌ `/v1/models` → 401 без токена | Источник сам пишет «skip until a key works» |
+| **ClawLabs `free-ai-models`** | ℹ️ Discovery-фид | Живой JSON c OpenRouter `:free` + Pollinations — держать в закладках для Stage 1 |
+
+**Отдельно про OpenRouter** (проверено каталогом и вызовами 2026-10-11): free-каталог — 19 моделей,
+все либо в конфиге, либо отсеяны. Но **четыре наши `:free`-записи умерли** — исчезли из каталога и
+отдают 404 «This model is unavailable for free»: `nex-n2.5-pro:free`, `nex-n2.5-mini:free`,
+`ling-3.0-flash-fin:free`, `ling-3.0-flash-vl:free`. Выведены из цепочек 2026-10-11.
+Ещё в каталоге есть, но не для нас: `thinkingmachines/inkling*:free` (gated на agentic-harness),
+`inclusionai/ling-3.1-flash` (pricing 0/0, но 403 key-limit — фактически платная),
+`nvidia/nemotron-3.5-content-safety:free` (guard), `google/lyria-*` (музыка).
+
+### Что проверялось и НЕ добавлено (анти-галлюцинации)
+
+- `mistral:mistral-code-latest`, `mistral-code-fim-latest` — **не новые модели**: alias'ы
+  `codestral-2508`, который уже в конфиге (`codestral:codestral`). Identity-probe это подтвердил
+  («Mistral Large» — Mistral вообще не называет себя честно, identity-gate на них бесполезен).
+- `mistral:labs-leanstral-1-5(-1)` — Labs-модель (Lean-тюн от Mistral Small 4), 403
+  `labs_not_enabled`: админ должен включить Labs в admin.mistral.ai/plateforme/privacy.
+- `nvidia:deepseek-ai/deepseek-v4.1-flash` — **реально существует** (200, RU ок), но на NIM
+  сейчас нестабилен: 2/3 проб упёрлись в таймаут 300s. Не класть в цепочки до стабилизации.
+- `openrouter:thinkingmachines/inkling(:small):free` — 403 «only available on agentic harnesses»:
+  OpenRouter пускает только клиенты из openrouter.ai/apps. Бесплатные, но не для шлюза.
+- `openrouter:inclusionai/ling-3.1-flash` — 403 «Key limit exceeded»: pricing в каталоге 0/0,
+  но фактически платная (за лимитом ключа). Free-detection каталога OpenRouter врёт.
+- `openrouter:nvidia/nemotron-3.5-content-safety:free` — guard-модель (отвечает «User Safety: safe»).
+- `nvidia:nvidia/ising-calibration-1.5-31b` — VLM для калибровки квантовых экспериментов.
+- `cerebras:qwen-3.8-27b` — 402 «Payment required»: Cerebras ушёл в платный, free-тир закрыт.
+- `gemini-omni-1.1-flash`, `gemini-omni-flash-preview` — существуют, но free-квота либо
+  исчерпана, либо мизерная: 429 на всех пробах. Перепробовать со свежей квотой (00:03 PT).
+- `zai:glm-5.3-flash` / `glm-5.3-flashx` — **платные** ($0.15/$0.50 и $0.37/$1.25).
+  ⚠️ always-thinking: наш kind-дефолт `thinking: {type: disabled}` на них даёт 400 —
+  если добавлять, нужно `extra_body: {"thinking": {"type": "enabled"}}` в записи.
+- `zai:glm-4.6v-flash` — бесплатный vision, но 429 «temporarily overloaded» на всех пробах;
+  та же модель уже есть через `zenmux:glm-4.6v-flash`.
+- `nvidia:moonshotai/kimi-k2.6`, `nvidia:writer/palmyra-*` — каталог NIM устарел: 404 на вызове.
+- `google/lyria-*` — генерация музыки, не chat.
+- `antigravity-preview-*` (Gemini API) — «This model only supports Interactions API».
 
 ## Платные расширения (опционально)
 
