@@ -155,10 +155,15 @@ PROVIDER_KIND_DEFAULTS = {
     # 2000 RPD общих, ≤500 RPD/модель. Свежие Qwen3.5-35B-A3B / Qwen3.5-27B.
     # ⚠️ Требует Alibaba Cloud аккаунт + real-name verification.
     "modelscope": {"base_url": "https://api-inference.modelscope.cn/v1"},
-    # Kilo Code (kilo.ai) — OpenAI-compat gateway. Auto-router `kilo-auto/free`
-    # = minimax-m2.5:free (80%) + step-3.5-flash:free (20%). ~200 req/hr на ключ.
-    # ⚠️ nvidia/nemotron-3-super-120b:free логирует промпты для NVIDIA.
+    # Kilo Code (kilo.ai) — OpenAI-compat gateway, ~200 req/hr на ключ.
+    # ⚠️ Каталог free-моделей ротируется: id без суффикса `:free` не существует,
+    # а снятый free-вариант отдаёт 404. Сверяйся с GET /api/gateway/models.
+    # ⚠️ nemotron-*:free — trial, NVIDIA логирует промпты.
     "kilo": {"base_url": "https://api.kilo.ai/api/gateway"},
+    # OrcaRouter — OpenAI-compat агрегатор (200+ моделей, zero markup).
+    # ⚠️ Бесплатные `*-free` модели требуют, чтобы владелец workspace привязал
+    # GitHub-аккаунт «со стажем»: новый аккаунт получает 429 free_rate_limited.
+    "orcarouter": {"base_url": "https://api.orcarouter.ai/v1"},
     # Ollama Cloud (ollama.com) — OpenAI-compat есть, не упомянуто в публичной доке но
     # GET https://ollama.com/v1/chat/completions возвращает 401 (= endpoint живой).
     # 39+ моделей включая deepseek-v4-pro, kimi-k2:1t, kimi-k2.5, kimi-k2-thinking,
@@ -272,6 +277,7 @@ _ADHOC_DEFAULT_API_KEY_ENV: dict[str, str] = {
     "llm7": "LLM7_API_KEY",
     "modelscope": "MODELSCOPE_API_KEY",
     "kilo": "KILO_API_KEY",
+    "orcarouter": "ORCAROUTER_API_KEY",
     "ollama": "OLLAMA_API_KEY",
     "vercel": "AI_GATEWAY_API_KEY",
     # opencode — ключ НЕОБЯЗАТЕЛЕН (kind в _NO_API_KEY_KINDS, при пустом ключе

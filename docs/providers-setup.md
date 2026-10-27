@@ -331,6 +331,26 @@
 - **Проверено 2026-08-01**: HTTP 200, 0.4s, корректный русский.
 - **kind**: `codestral`.
 
+### 21. OrcaRouter — агрегатор 200+ моделей, zero markup
+
+- **Регистрация**: https://www.orcarouter.ai/login (email). Ключ — в консоли `/console/token`.
+  ⚠️ **Free-модели требуют привязки GitHub-аккаунта «со стажем»** (профиль → Link GitHub).
+  Свежесозданный GitHub не подходит: все `*-free` отдают
+  `429 free_rate_limited` / «workspace owner must link a GitHub account that has been
+  registered for some time». Платные модели работают сразу после пополнения баланса.
+- **ENV**: `ORCAROUTER_API_KEY` (ключ вида `sk-orca-…`).
+- **Endpoint**: `https://api.orcarouter.ai/v1` — OpenAI-совместимый, `GET /v1/models` отдаёт цены.
+- **Free-модели (цены 0/0 в каталоге, 2026-10-27)**: `z-ai/glm-5.3-flash-free`,
+  `deepseek/deepseek-v4-flash-free`, `deepseek/deepseek-v4.1-flash-free`,
+  `tencent/hy3-free`, `tencent/hy4-preview-free`. Служебная `orca/orcaverify-text1.0-free`
+  — не чат-модель, не добавлять.
+- **Лимиты free-тира**: не публикуются; в конфиге стоят консервативные 10 RPM / 200 RPD.
+- **Модель биллинга**: zero markup — платишь ровно прайс вендора; подписка Hacker = $0,
+  Team $499/мес — только за фичи команды, не за токены.
+- **kind**: `orcarouter`.
+- **Статус 2026-10-27**: ключ заведён, 5 записей в конфиге с пометкой «estimate»
+  (живой пробы не было — 429 гейт), две стоят в хвостах `chat`/`code`.
+
 ## Состояние провайдеров на 2026-08-03
 
 Живой аудит всех записей конфига (реальные вызовы, не догадки). Здесь — только то, что **не работает**,
@@ -475,6 +495,63 @@ Trial-кредиты, которых у нас нет: Baseten $30, AI21 $10, Fi
 - `nvidia:moonshotai/kimi-k2.6`, `nvidia:writer/palmyra-*` — каталог NIM устарел: 404 на вызове.
 - `google/lyria-*` — генерация музыки, не chat.
 - `antigravity-preview-*` (Gemini API) — «This model only supports Interactions API».
+
+## Состояние провайдеров на 2026-10-27
+
+Продолжение блока 2026-10-11. Триггер — `all providers failed on chain code` из-за
+снятой с каталога Kilo free-модели. Полный разбор — в
+[`model-refresh-2026-10-27.md`](model-refresh-2026-10-27.md); здесь коротко.
+
+**Новый инструмент:** `uv run python scans/liveness_sweep.py [--chain code] [--kind kilo]`
+— шлёт крошечный запрос каждому чат-провайдеру из конфига и раскладывает по статусам
+(`ok` / `empty` с ретраем на 1200 токенов / `http_404` / `http_401` / …). Ловит ротацию
+каталога пачкой, без identity-пробы.
+
+### Вычищено (15 записей, все дали 404/410 на живом вызове)
+
+`openrouter:nemotron-3-super-free` (→ `openrouter:nemotron-3-ultra-free`),
+`openrouter:nex-n2.5-pro|mini:free`, `openrouter:ling-3.0-flash-fin|vl:free`,
+`openrouter:apodex-1.1-mini:free` (снят через 16 дней после добавления),
+`ovhcloud:qwen3-32b` (→ `ovhcloud:llama-3.3-70b`), `ovhcloud:qwen3-coder-30b`
+(→ `kilo:north-mini-code`), `groq:qwen3.6-27b`, `groq:compound`, `groq:compound-mini`,
+`nvidia:nemotron-3-super` (→ `nvidia:nemotron-3-ultra`), `nvidia:kimi-k3`,
+`nvidia:deepseek-v4-flash`, `nvidia:deepseek-v4-pro`.
+
+### Kilo: каталог ротировался, двери переставлены
+
+- `nvidia/nemotron-3-super-120b-a12b:free` → 404 → `kilo:nemotron-3-ultra`
+  (`nvidia/nemotron-3-ultra-550b-a55b:free`, identity совпала).
+- `stepfun/step-3.7-flash:free` → 404 (остался платный `stepfun/step-3.7-flash`).
+  В `code` вместо неё `kilo:north-mini-code`, в `reasoning_quality` — `kilo:nemotron-3.5-lightning`.
+- Добавлены: `kilo:north-mini-code`, `kilo:dots-3-note`, `kilo:nemotron-3.5-lightning`,
+  `kilo:nemotron-3.5-super-vl` (все проверены маркерным промптом).
+- Free-модели Kilo с `429 upstream temporarily rate limited` (lfm-2.5, flint-v1.0,
+  xing4.0, laguna-xs) — не берём, пока не появится ёмкость.
+
+### OrcaRouter — ключ есть, free-модели ждут GitHub
+
+См. §21. Пока все пять чат-моделей отвечают `429 free_rate_limited` (анти-абьюз:
+нужен привязанный «не новый» GitHub-аккаунт). Записи стоят в хвостах `chat` и `code`.
+
+### Аккаунтные двери (не ротация — ключи и квоты)
+
+| Провайдер | Код | Причина |
+|---|---|---|
+| SiliconFlow | 403 | «please complete identity verification before use» |
+| HuggingFace | 402 | «no remaining credits» (инференс больше не бесплатный) |
+| SambaNova | 401 | ключ отозван |
+| DeepSeek direct | 402 | `Insufficient Balance` |
+| OpenAI | 401 | ключ невалиден/просрочен |
+| Cerebras | 402 | trial только с картой |
+| FreeTheAi | 530 | Cloudflare origin error, лежит весь сервис |
+| Gemini | 429 | дневная free-квота (в свипе — из-за моих же проб) |
+
+### Что проверялось и НЕ добавлено
+
+Stage 1 дал 37 кандидатов, Stage 2 — **0 подтверждённых**: `zai:glm-4.5/4.6/4.7` на
+identity-промпт отвечают «I am Gemini» (silent routing), `mistral:*-code-latest` —
+алиас Mistral Large, `cerebras:*` 402, `sambanova:*` 401, `thinkingmachines/inkling*`
+и `lyria-*` 403, `nvidia:step-5-preview` / `minimax-m3.1-flash` — таймаут/пусто.
 
 ## Платные расширения (опционально)
 

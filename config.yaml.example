@@ -1765,13 +1765,14 @@ providers:
     ru: 0
 
   # --- Kilo Code (kilo.ai) ~200 req/hr на ключ ---
-  # ⚠️ smoke 2026-05-13: из README кодекса awesome-free-llm-apis уже отвалились
-  # minimax-m2.5:free, bytedance dola-seed:free, trinity-large-thinking:free —
-  # все возвращают "free period ended". x-ai/grok-code-fast-1 требует /responses
-  # endpoint (не OpenAI chat-compat). Живые: kilo-auto/free → routing на stepfun
-  # step-3.5-flash:free + nvidia/nemotron-3-super-120b-a12b:free.
-  # ⚠️ nemotron-3-super:free — trial mode, NVIDIA логирует промпты.
-  # Все живые модели — thinking-модели, ответ в reasoning, не в content!
+  # ⚠️ Каталог ротируется часто: free-вариант снимают, оставляя платный id.
+  # Перед добавлением сверяйся с GET https://api.kilo.ai/api/gateway/models
+  # (суффикс :free обязателен — без него id не существует).
+  # Живые free-модели на 2026-10-27: nemotron-3-ultra, north-mini-code,
+  # dots-3-note-preview, nemotron-3.5-lightning, nemotron-3.5-super-vl,
+  # laguna-s-2.1, а также kilo-auto/free (роутер).
+  # ⚠️ nemotron-*:free — trial mode, NVIDIA логирует промпты.
+  # Часть моделей thinking-only: на max_tokens<1000 content пустой.
 
   - name: kilo:auto-free
     kind: kilo
@@ -1782,29 +1783,43 @@ providers:
     quality: 0
     latency_s: 0
     ru: 0
-    reasoning: true   # routes на step-3.5-flash (thinking)
+    reasoning: true
 
-  - name: kilo:step-3.5-flash
+  - name: kilo:nemotron-3-ultra
     kind: kilo
-    model: stepfun/step-3.5-flash:free
+    model: nvidia/nemotron-3-ultra-550b-a55b:free
+    api_key_env: KILO_API_KEY
+    rpm: 3
+    timeout: 240
+    quota_limited: true   # ⚠️ trial-only: NVIDIA логирует промпты — не используй для приватных данных
+    quality: 38
+    latency_s: 4.7
+    ru: 55
+    reasoning: true
+
+  - name: kilo:north-mini-code
+    kind: kilo
+    model: cohere/north-mini-code:free
     api_key_env: KILO_API_KEY
     rpm: 3
     timeout: 120
-    quality: 0
-    latency_s: 0
-    ru: 0
-    reasoning: true
+    quality: 25
+    latency_s: 7.0
+    ru: 60
 
-  - name: kilo:nemotron-3-super
-    kind: kilo
-    model: nvidia/nemotron-3-super-120b-a12b:free
-    api_key_env: KILO_API_KEY
-    rpm: 3
+  # --- OrcaRouter (orcarouter.ai) — 200+ моделей, zero markup ---
+  # ⚠️ *-free модели требуют привязанного GitHub-аккаунта «со стажем» в профиле,
+  # иначе 429 free_rate_limited. Платные — сразу после пополнения баланса.
+  - name: orcarouter:glm-5.3-flash-free
+    kind: orcarouter
+    model: z-ai/glm-5.3-flash-free
+    api_key_env: ORCAROUTER_API_KEY
+    rpm: 10
+    rpd: 200
     timeout: 180
-    quota_limited: true   # ⚠️ trial-only: NVIDIA логирует промпты — не используй для приватных данных
-    quality: 0
-    latency_s: 0
-    ru: 0
+    quality: 50
+    latency_s: 2.0
+    ru: 80
     reasoning: true
 
   # --- Ollama Cloud (ollama.com) — OpenAI-compat /v1, free-tier ---

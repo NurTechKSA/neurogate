@@ -32,6 +32,7 @@ tests/
 # allowlist — audit pipeline needs to be in repo for CI
 !scans/audit_catalog.py
 !scans/audit_verifier.py
+!scans/liveness_sweep.py
 !scans/run_weekly_audit.sh
 !scans/catalog-snapshot.json
 !scans/paid_models_blocklist.yaml
