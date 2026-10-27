@@ -47,7 +47,8 @@
 | 🟢 | ⚠️ | **Mistral Codestral** | `MISTRAL_API_KEY` | 30 RPM / 2000 RPD | да | нет | Отдельный хост со **своей** квотой на том же ключе — реальный прирост ёмкости. См. §20. |
 | 🔵 | ⚠️ | **ModelScope** | `MODELSCOPE_API_KEY` | 2000 RPD / ≤500 на модель | — | нет | ⚠️ Сейчас 401. Требует Alibaba-аккаунт + real-name verification. Низкий приоритет — см. §18. |
 | 🔵 | ⚠️ | **SiliconFlow** | `SILICONFLOW_API_KEY` | 1000 RPM / 50K TPM | — | нет | ⚠️ Сейчас 403 — нужна identity verification. |
-| 🟡 | ⚠️ | **Kilo Code** | `KILO_API_KEY` | ~200 req/hr | нет | нет | Шлюз к poolside/step/nemotron `:free`. `nvidia/nemotron-3-super` логирует промпты для NVIDIA. |
+| 🟡 | ⚠️ | **Kilo Code** | `KILO_API_KEY` | ~200 req/hr | нет | нет | Шлюз к poolside/cohere/nemotron `:free`. Каталог ротируется (free-вариант снимают) — сверяйся с `/api/gateway/models`. `nemotron-*:free` логирует промпты для NVIDIA. |
+| 🟡 | ⚠️ | **OrcaRouter** | `ORCAROUTER_API_KEY` | free-тир без публичных цифр | да (GitHub) | нет | 200+ моделей zero markup. `*-free` работают только после привязки «не нового» GitHub к workspace; иначе 429. |
 | 🟢 | ⚠️ | **Poolside** | `POOLSIDE_API_KEY` | не опубликованы | нет | нет | Кодовые Laguna. У прямого API остался только `laguna-xs-2.1`. |
 | 🟣 | 🟣 | **AIhorde** | — (anon) | community queue | нет | нет | Распределённый inference — твой prompt видит worker, который на нём генерирует картинку. |
 
