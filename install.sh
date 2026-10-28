@@ -6,7 +6,7 @@
 # NEUROGATE_NO_AUTOSTART=1 — не ставить автозапуск (сервер, тесты, «запущу сам»).
 #
 # Что делает: ставит uv, качает neurogate в ~/neurogate, ставит зависимости,
-# запускает мастер ключей, включает автозапуск сервера и подключает Claude Code.
+# запускает мастер ключей, включает автозапуск сервера и подключает OpenCode и Claude Code.
 # Повторный запуск безопасен — обновит код и ничего не сотрёт.
 set -euo pipefail
 
@@ -132,7 +132,8 @@ if [ -z "${NEUROGATE_NO_AUTOSTART:-}" ]; then
   fi
 fi
 
-say "6/6 Подключение инструментов"
+say "6/6 Подключение программ"
+"$UV" run neurogate connect opencode
 "$UV" run neurogate connect claude-code
 if ! command -v claude >/dev/null 2>&1; then
   echo "Claude Code не найден. Поставить: curl -fsSL https://claude.ai/install.sh | bash"
@@ -158,12 +159,16 @@ fi
 
 cat <<EOF
 
-✅ Готово.
+✅ Готово. Всё бесплатно, подписки не нужны.
+
+  ⭐ Приложение OpenCode (окно, как у Claude/ChatGPT):
+     скачайте https://opencode.ai/download → откройте → выберите папку проекта → пишите задачу.
+     Модель «neurogate/code» уже выбрана.
+  Claude Code в терминале: claude-free
   Панель и тестовый чат:   http://127.0.0.1:$PORT/dashboard
-  Claude Code бесплатно:   claude-free
   Добавить ещё ключи:      neurogate setup
   Проверить ключи:         neurogate keys
-  Cursor/Cline/OpenCode:   neurogate connect cline   (или cursor, opencode, continue)
+  VS Code (Cline и др.):   neurogate connect cline   (или continue, cursor)
   Перезапустить сервер:    neurogate restart   (setup делает это сам)
 EOF
 if [ -n "${NEW_PATH:-}" ]; then

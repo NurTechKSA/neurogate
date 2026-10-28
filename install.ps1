@@ -94,13 +94,14 @@ for ($i = 0; $i -lt 40; $i++) {
 if ($ok) { Write-Host "Сервер работает: http://127.0.0.1:$Port/dashboard" }
 else { Write-Host "Сервер пока не ответил. Лог: $Dir\neurogate.log" }
 
-Say "6/6 Подключение инструментов"
+Say "6/6 Подключение программ"
 @"
 @echo off
 set PYTHONUTF8=1
 cd /d "$Dir"
 "$Uv" run neurogate %*
 "@ | Set-Content -Encoding ASCII (Join-Path $Bin "neurogate.cmd")
+& $Uv run neurogate connect opencode
 & $Uv run neurogate connect claude-code
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
     Write-Host "Claude Code не найден. Поставить: irm https://claude.ai/install.ps1 | iex"
@@ -114,11 +115,15 @@ if ($userPath -notlike "*$Bin*") {
 
 Write-Host @"
 
-Готово.
+Готово. Всё бесплатно, подписки не нужны.
+
+  * Приложение OpenCode (окно, как у Claude/ChatGPT):
+     скачайте https://opencode.ai/download -> откройте -> выберите папку проекта -> пишите задачу.
+     Модель «neurogate/code» уже выбрана.
   Панель и тестовый чат:   http://127.0.0.1:$Port/dashboard
-  Claude Code бесплатно:   claude-free
+  Claude Code в терминале: claude-free
   Добавить ещё ключи:      neurogate setup
   Проверить ключи:         neurogate keys
-  Cursor/Cline/OpenCode:   neurogate connect cline   (или cursor, opencode, continue)
+  VS Code (Cline и др.):   neurogate connect cline   (или continue, cursor)
   Перезапустить сервер:    neurogate restart   (setup делает это сам)
 "@

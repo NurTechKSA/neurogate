@@ -57,21 +57,32 @@ neurogate keys             # какие ключи есть и работают 
 
 ## 3. Пишем код
 
-### Claude Code
+### ⭐ OpenCode — приложение, как Claude и ChatGPT (рекомендуем)
+
+1. Скачайте OpenCode: https://opencode.ai/download (Mac, Windows, Linux) — бесплатно.
+2. Откройте его и выберите папку проекта.
+3. Пишите задачу в чат: «сделай сайт-визитку», «найди ошибку в main.py». Агент сам создаёт и
+   правит файлы, запускает команды.
+
+Модель **neurogate/code** уже выбрана установщиком — это бесплатные модели. Если OpenCode
+поставили позже установки или модель слетела: `neurogate connect opencode`, затем перезапустите
+OpenCode.
+
+### Claude Code (в терминале)
 
 ```bash
 claude-free
 ```
 
-Это обычный Claude Code (файлы, терминал, правки), но вместо платного Claude в нём работают
+Подписка и аккаунт Anthropic не нужны. Это обычный Claude Code (файлы, терминал, правки), но вместо платного Claude в нём работают
 бесплатные модели: Qwen3-Coder-480B, Gemini, DeepSeek и другие. Обычная команда `claude`
 остаётся как была. Если Claude Code ещё не установлен:
 `curl -fsSL https://claude.ai/install.sh | bash` (Windows: `irm https://claude.ai/install.ps1 | iex`).
 
-### Cline, Roo Code, Kilo Code, Continue, OpenCode
+### VS Code: Cline, Roo Code, Kilo Code, Continue
 
 ```bash
-neurogate connect cline      # или continue, opencode, cursor
+neurogate connect cline      # или continue, cursor
 ```
 
 Команда покажет, что вписать в настройки: адрес `http://127.0.0.1:8765/v1`, ключ и модель `code`.

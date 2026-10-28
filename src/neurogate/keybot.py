@@ -127,6 +127,9 @@ class KeyBot:
         self.drop_url = drop_url
         catalog = load_catalog()
         self.services = sorted(catalog["services"], key=lambda s: s["priority"])
+        # Последняя карточка с кнопками в каждом чате — у неё снимаем кнопки, когда
+        # приходит следующая (иначе в чате копятся одинаковые «Пропустить»)
+        self.last_card: dict[int, int] = {}
         self.keyless = catalog.get("keyless", [])
 
     # --- rendering
@@ -165,7 +168,16 @@ class KeyBot:
             await self.finish(chat_id)
             return
         text, buttons = self._card(self.services[idx], idx, s_state["keys"], note)
-        await self.tg.send(chat_id, text, buttons)
+        await self._send_card(chat_id, text, buttons)
+
+    async def _send_card(self, chat_id: int, text: str, buttons: list[list[dict]]) -> None:
+        prev = self.last_card.pop(chat_id, None)
+        if prev:
+            await self.tg.call("editMessageReplyMarkup", chat_id=chat_id, message_id=prev,
+                               reply_markup={"inline_keyboard": []})
+        sent = await self.tg.send(chat_id, text, buttons)
+        if sent and "message_id" in sent:
+            self.last_card[chat_id] = sent["message_id"]
 
     # --- commands
 
@@ -175,8 +187,9 @@ class KeyBot:
         text = (
             "⚡ <b>neurogate — бесплатные нейросети для кода</b>\n\n"
             "Соберём ваши бесплатные ключи от сервисов ИИ (Gemini, OpenRouter, Groq, NVIDIA и ещё "
-            f"{len(self.services) - 4}). Потом одна команда — и у вас на компьютере работает "
-            "<b>Claude Code на бесплатных моделях</b>: без подписок и карт.\n\n"
+            f"{len(self.services) - 4}). Потом одна команда — и у вас на компьютере ИИ пишет код "
+            "<b>в приложении OpenCode</b> (окно, как у Claude и ChatGPT) или в Claude Code — "
+            "на бесплатных моделях, без подписок и карт.\n\n"
             "Как это идёт:\n"
             "1️⃣ Я показываю сервис и ссылку — вы создаёте ключ (1–2 минуты)\n"
             "2️⃣ Присылаете ключ сюда — я проверяю и удаляю сообщение\n"
@@ -222,8 +235,11 @@ class KeyBot:
             "♻️ <b>neurogate уже стоит?</b> Тогда достаточно:\n"
             f"<code>neurogate import {code}</code>\n\n"
             "⏳ Код срабатывает один раз и живёт 24 часа. Никому его не пересылайте.\n\n"
-            "После установки откройте новый терминал и запустите <code>claude-free</code> — "
-            "это Claude Code на бесплатных моделях. Добавить ещё ключей — снова /start."
+            "<b>Дальше:</b>\n"
+            "⭐ Скачайте приложение <a href=\"https://opencode.ai/download\">OpenCode</a>, откройте "
+            "папку проекта и пишите задачу в чат — модель «neurogate/code» уже выбрана.\n"
+            "💻 Или в терминале: <code>claude-free</code> — Claude Code на бесплатных моделях.\n\n"
+            "Добавить ещё ключей — снова /start."
         )
         await self.tg.send(chat_id, text)
 
@@ -289,9 +305,8 @@ class KeyBot:
 
         ok, why = await asyncio.to_thread(check_key, s, text)
         if ok is False:
-            text_, buttons = self._card(s, state["idx"], state["keys"],
-                                        f"❌ {html.escape(why)}. Пришлите ключ ещё раз или пропустите.")
-            await self.tg.send(chat_id, text_, buttons)
+            await self.tg.send(chat_id, f"❌ <b>{html.escape(s['name'])}</b>: {html.escape(why)}.\n"
+                                        "Скопируйте ключ целиком и пришлите ещё раз — или «Пропустить» выше.")
             return
         state["keys"][s["env"]] = text
         extra = next(iter(s.get("extra_env", [])), None)
