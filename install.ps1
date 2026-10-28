@@ -47,6 +47,21 @@ Say "3/6 Зависимости"
 if (-not (Test-Path ".env")) { Copy-Item ".env.example" ".env" }
 if (-not (Test-Path "config.yaml")) { Copy-Item "config.yaml.example" "config.yaml" }
 
+# Порт занят чужой программой (не нашим прошлым запуском) — берём следующий свободный.
+function PortBusy($p) { [bool](Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue) }
+$ours = $false
+try { $ours = (Invoke-RestMethod "http://127.0.0.1:$Port/health" -TimeoutSec 2).ok } catch {}
+if ((PortBusy $Port) -and -not $ours) {
+    foreach ($p in ([int]$Port + 1)..([int]$Port + 20)) {
+        if (-not (PortBusy $p)) { Write-Host "Порт $Port занят другой программой — беру $p."; $Port = "$p"; break }
+    }
+}
+$envText = Get-Content .env -Raw
+if ($envText -match "(?m)^NEUROGATE_PORT=") { $envText = $envText -replace "(?m)^NEUROGATE_PORT=.*", "NEUROGATE_PORT=$Port" }
+else { $envText += "`nNEUROGATE_PORT=$Port`n" }
+Set-Content -Encoding UTF8 .env $envText
+$env:NEUROGATE_PORT = $Port
+
 Say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
 & $Uv run neurogate setup
 

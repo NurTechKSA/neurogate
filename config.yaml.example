@@ -201,9 +201,9 @@ providers:
     ru: 55        # bench: 11/20 (auto, 8.06s avg)
     reasoning: true   # подтверждено 2026-04-21: thoughts_token_count=260
 
-  - name: gemini:2.5-flash
+  - name: gemini:3.5-flash
     kind: gemini
-    model: gemini-2.5-flash
+    model: gemini-3.5-flash  # 2.5 закрыт для новых ключей с 10.2026
     api_key_env: GEMINI_API_KEY
     rpm: 10
     rpd: 250
@@ -425,9 +425,9 @@ providers:
     latency_s: 2.612
     ru: 85        # bench: 17/20 (auto, 0.68s avg)
 
-  - name: gemini:2.5-flash-lite
+  - name: gemini:3.5-flash-lite
     kind: gemini
-    model: gemini-2.5-flash-lite
+    model: gemini-3.5-flash-lite  # 2.5 закрыт для новых ключей с 10.2026
     api_key_env: GEMINI_API_KEY
     rpm: 15
     rpd: 1000
@@ -2696,6 +2696,96 @@ providers:
     latency_s: 0
     ru: 0
 
+
+  # --- 2026-10-28 (форк): живой бесплатный каталог OpenRouter и Gemini 3.x (проба с ключом).
+  # Снятые :free-модели на старте отсеивает neurogate.liveness по GET /api/v1/models.
+  - name: openrouter:nemotron-3-ultra-free
+    kind: openrouter
+    model: nvidia/nemotron-3-ultra-550b-a55b:free
+    api_key_env: OPENROUTER_API_KEY
+    rpm: 20
+    rpd: 50
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: openrouter:nemotron-3.5-super-vl-free
+    kind: openrouter
+    model: nvidia/nemotron-3.5-super-vl:free
+    api_key_env: OPENROUTER_API_KEY
+    rpm: 20
+    rpd: 50
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: openrouter:nemotron-3.5-lightning-free
+    kind: openrouter
+    model: nvidia/nemotron-3.5-lightning:free
+    api_key_env: OPENROUTER_API_KEY
+    rpm: 20
+    rpd: 50
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: openrouter:laguna-s-2.1-free
+    kind: openrouter
+    model: poolside/laguna-s-2.1:free
+    api_key_env: OPENROUTER_API_KEY
+    rpm: 20
+    rpd: 50
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: openrouter:laguna-xs-2.1-free
+    kind: openrouter
+    model: poolside/laguna-xs-2.1:free
+    api_key_env: OPENROUTER_API_KEY
+    rpm: 20
+    rpd: 50
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: openrouter:north-mini-code-free
+    kind: openrouter
+    model: cohere/north-mini-code:free
+    api_key_env: OPENROUTER_API_KEY
+    rpm: 20
+    rpd: 50
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: openrouter:dots-3-note-free
+    kind: openrouter
+    model: dots-studio/dots-3-note-preview:free
+    api_key_env: OPENROUTER_API_KEY
+    rpm: 20
+    rpd: 50
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: gemini:3.6-flash
+    kind: gemini
+    model: gemini-3.6-flash
+    api_key_env: GEMINI_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 2.3
+    ru: 0
+
 # ==================================================================================
 # Цепочки. Порядок = приоритет фоллбэка.
 # ==================================================================================
@@ -2708,15 +2798,20 @@ chains:
   # chain (router считает 402 non-retryable). Провайдер остался в `providers:` —
   # доступен через прямой `model=deepseek:v4-flash` после пополнения.
   chat:
+    # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    - gemini:3.5-flash
+    - openrouter:nemotron-3.5-super-vl-free
+    - openrouter:dots-3-note-free
+    - openrouter:nemotron-3.5-lightning-free
     - github:gpt-4.1-mini
     - yandex:alice
-    - gemini:2.5-flash-lite
+    - gemini:3.5-flash-lite
     - sambanova:llama-4-maverick
     - freetheai:gemini-2.5-flash         # 4.1s · переехал из хвоста (circuit-breaker, 2026-05-08)
     - openrouter:minimax-m2.5-free
     - cerebras:qwen-3-235b
     - gemini:flash-lite-latest
-    - gemini:2.5-flash
+    - gemini:3.5-flash
     - sambanova:deepseek-v3.2
     - freetheai:gpt-5                    # 5.3s · claims OpenAI gpt-5 (frontier)
     - sambanova:deepseek-v3.1
@@ -2814,12 +2909,12 @@ chains:
     # deepseek:v4-flash убран 2026-05-12 — см. комментарий в chain `chat`
     - github:gpt-4.1-mini
     - yandex:alice
-    - gemini:2.5-flash-lite
+    - gemini:3.5-flash-lite
     - sambanova:llama-4-maverick
     - freetheai:gemini-2.5-flash         # 4.1s · переехал из хвоста (circuit-breaker, 2026-05-08)
     - cerebras:qwen-3-235b
     - gemini:flash-lite-latest
-    - gemini:2.5-flash
+    - gemini:3.5-flash
     - sambanova:deepseek-v3.2
     - sambanova:deepseek-v3.1
     - github:gpt-4o-mini
@@ -2872,7 +2967,7 @@ chains:
   #
   # Excluded from chat/chat_fast (and why — все обнаружены на бенче 2026-05-12):
   #   - yandex:alice                    — plaintext refusal "Я не могу..." на ислам/брак
-  #   - gemini:2.5-flash (full)         — цензурит религиозные декларации как policy violation
+  #   - gemini:3.5-flash (full)         — цензурит религиозные декларации как policy violation
   #   - cohere:command-r, command-r7b   — выдумывают "objectionable language" verdicts
   #   - github:llama-3.3-70b            — flag religious references как invalid
   #   - groq:llama-3.3-70b              — требует "objective format", invalid на нормальном тексте
@@ -2882,7 +2977,7 @@ chains:
   #     (на коротких фразах работают, на длинных — censorship-режим)
   #   - openrouter:nemotron-3-nano-30b-free — false-negatives на коротком тексте
   #   - github:deepseek-v3              — wraps in ```json fences
-  #   - gemini:2.5-flash-lite           — иногда wraps в ```json fences (~30%)
+  #   - gemini:3.5-flash-lite           — иногда wraps в ```json fences (~30%)
   #   - openrouter:*-free (gemma-3*, gemma-3n-*, gemma-4-26b, hermes-3, ling-*,
   #     llama-3.*-free, qwen3-coder, qwen3-next, minimax-m2.5, dolphin-venice)
   #                                     — upstream 404 "No endpoints found"
@@ -2908,6 +3003,12 @@ chains:
     # (FunctionResponse.name теперь подставляется из предыдущего assistant.tool_calls
     #  по tool_call_id — Claude Code через claude-code-router больше не падает 400).
     # deepseek:v4-pro убран 2026-05-12 — см. комментарий в chain `chat`
+    # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    - gemini:3.6-flash
+    - openrouter:nemotron-3-ultra-free
+    - gemini:3.5-flash
+    - openrouter:north-mini-code-free
+    - openrouter:laguna-s-2.1-free
     - nvidia:qwen3-coder-480b         # 2.0s · 480B/35B, 256k ctx, agentic SWE-V ~52%, code-specialized
     - gemini:flash-latest             # 92 · SWE 78, LCB 90.8
     - nvidia:qwen3.5-397b             # 88 · SWE 76.4
@@ -2924,7 +3025,7 @@ chains:
     - github:gpt-4.1-mini             # 52
     # gpt-oss-20b/llama-8b/free-router исключены 2026-05-02: «спасают» tool-call
     # запросы пустыми/невалидными ответами — cline получает unparsable response.
-    - gemini:2.5-flash                # 45
+    - gemini:3.5-flash                # 45
     - gemini:gemma-4-31b-it           # 13.3s · NEW Gemma 4 dense, 2026-05-02
     - sambanova:llama-4-maverick      # 40
     - github:deepseek-v3              # 38 · V3-0324
@@ -2932,7 +3033,7 @@ chains:
     - groq:llama-4-scout              # 32
     - groq:qwen3-32b                  # 30 · reasoning
     - zai:glm-4.5-flash               # 28
-    - gemini:2.5-flash-lite           # 25
+    - gemini:3.5-flash-lite           # 25
     - sambanova:llama-3.3-70b         # 22
     - nvidia:nemotron-llama-49b       # 22 · NAS-pruned
     - groq:llama-3.3-70b              # 22
@@ -2976,6 +3077,10 @@ chains:
   # === code_fast: только модели с реальным latency ≤10s (probe 2026-05-02). ===
   # Топ-приоритет: code-specialized + agentic-friendly.
   code_fast:
+    # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    - gemini:3.5-flash-lite
+    - openrouter:nemotron-3.5-lightning-free
+    - openrouter:laguna-s-2.1-free
     - nvidia:qwen3-coder-480b         # 2.0s · 480B/35B, 256k ctx, code-spec ⭐
     - poolside:laguna-xs.2             # 4.0s · 33B-A3B Apache 2.0, SWE-Pro 45 / SWE-V 68 — fast coder
     - gemini:flash-latest             # 3.6s · SWE 78, LCB 90.8 (top quality на коде)
@@ -2985,7 +3090,7 @@ chains:
     - sambanova:llama-4-maverick      # 1.6s · 17B/128E
     - sambanova:deepseek-v3.2         # 3.4s · LCB 89.6, AA 46
     - sambanova:deepseek-v3.1         # 3.2s · hybrid reasoning
-    - gemini:2.5-flash                # 3.5s · thinking on by default
+    - gemini:3.5-flash                # 3.5s · thinking on by default
     - github:gpt-4.1-mini             # 5.4s · solid GPT-4.1
     - groq:qwen3-32b                  # ~3s · reasoning
     - openrouter:qwen3-coder-free     # ~5s · code-spec via OR (429-flaky)
@@ -3015,12 +3120,12 @@ chains:
     - gigachat:2-max                  # ~2400ms · Sber GigaChat-2-Max (top RU)
     - gemini:flash-lite-latest        # 2612ms
     - openrouter:ling-1t-free         # 2630ms · Ling 2.6 1T MoE (Novita backend)
-    - gemini:2.5-flash-lite           # 2626ms
+    - gemini:3.5-flash-lite           # 2626ms
     - openrouter:gemma-3-27b-free     # 3118ms (2/3 OK)
     - pollinations:gpt-oss-20b        # ~4000ms (unique RU prompt, reasoning-heavy)
     - sambanova:deepseek-v3.1         # 3216ms
     - sambanova:deepseek-v3.2         # 3448ms
-    - gemini:2.5-flash                # 3529ms (1/5 OK — квота)
+    - gemini:3.5-flash                # 3529ms (1/5 OK — квота)
     - gemini:flash-latest             # 3582ms
     - github:gpt-4o-mini              # 3867ms
     - github:deepseek-v3              # 4639ms (1/5 OK — flaky на длинных ответах)
@@ -3061,7 +3166,7 @@ chains:
     - mistral:large                   # AA 23
     - github:gpt-4.1-mini             # AA 23
     - github:deepseek-v3              # AA 22
-    - gemini:2.5-flash                # AA 21
+    - gemini:3.5-flash                # AA 21
     - zai:glm-4.5-flash               # AA ~20
     - openrouter:gemma-3-27b-free     # AA 20 (Gemma 3 27B)
     - openrouter:free-router          # AA ~20 (lottery)
@@ -3075,7 +3180,7 @@ chains:
     - github:llama-3.3-70b            # AA 15
     - cloudflare:llama-3.3-70b-fp8-fast # AA 14
     - groq:llama-4-scout              # AA 14
-    - gemini:2.5-flash-lite           # AA 13
+    - gemini:3.5-flash-lite           # AA 13
     - github:gpt-4o-mini              # AA 13
     - cerebras:llama3.1-8b            # AA 12
     - groq:llama-3.1-8b-instant       # AA 12
@@ -3134,9 +3239,9 @@ chains:
     - gemini:flash-lite-latest        # точный + контекст (3D-стиль, обои/аватарка), 14-18s
     - github:gpt-4.1-mini             # точный, средней детальности, ~5s
     - github:gpt-4o-mini              # точный, краткий, ~5s
-    - gemini:2.5-flash-lite           # точный + быстрый (1.7s)
+    - gemini:3.5-flash-lite           # точный + быстрый (1.7s)
     - groq:llama-4-scout              # самый быстрый (0.8s), точный, иногда путает детали
-    - gemini:2.5-flash                # ⚠️ обрезается — thinking ест max_output_tokens
+    - gemini:3.5-flash                # ⚠️ обрезается — thinking ест max_output_tokens
     - gemini:flash-latest             # ⚠️ обрезается — thinking ест max_output_tokens
     - openrouter:gemma-3-27b-free     # vision-capable, но upstream 429 (2/2 fail в тестах)
     - openrouter:free-router          # last-resort lottery, кривая кириллица
@@ -3162,7 +3267,7 @@ chains:
     - mistral:large                    # AA 23, multi-lang
     - github:gpt-4.1-mini              # AA 23, GPT-4.1 — сильный EN chat
     - github:deepseek-v3               # AA 22
-    - gemini:2.5-flash                 # AA 21, thinking-by-default
+    - gemini:3.5-flash                 # AA 21, thinking-by-default
     - openrouter:gemma-3-27b-free      # AA 20, Gemma 3 EN
     - openrouter:ling-flash-free       # AA ~18, InclusionAI Ling, 262k ctx, 1.2s
     - sambanova:llama-4-maverick       # AA 17, Llama 4
@@ -3172,7 +3277,7 @@ chains:
     - nvidia:llama-3.3-70b             # AA 15
     - github:llama-3.3-70b             # AA 15
     - cloudflare:llama-3.3-70b-fp8-fast # AA 14
-    - gemini:2.5-flash-lite            # AA 13, 2.6s
+    - gemini:3.5-flash-lite            # AA 13, 2.6s
     - github:gpt-4o-mini               # AA 13
     - cerebras:llama3.1-8b             # AA 12, 0.4s — fastest
     - groq:llama-3.1-8b-instant        # AA 12, 0.7s
@@ -3216,7 +3321,7 @@ chains:
     - groq:gpt-oss-20b                 # AA 25, r_tok=192
     - pollinations:gpt-oss-20b         # AA 25, same GPT-OSS 20B Reasoning via OVH (no-auth backup)
     - openrouter:glm-4.5-air-free      # AA 24, r_tok=302
-    - gemini:2.5-flash                 # AA 21, thoughts=743
+    - gemini:3.5-flash                 # AA 21, thoughts=743
     - zai:glm-4.5-flash                # AA 20, r_tok=437 (самое глубокое thinking, но 25s)
     - groq:qwen3-32b                   # AA 17, inline <think>, 716 tokens
     # --- 2026-05-02 estimates additions (новые reasoning-модели) ---
@@ -3228,7 +3333,7 @@ chains:
   # Когда важен САМ факт длительного рассуждения (сложные многошаговые задачи, CoT-heavy).
   # Первыми идут провайдеры, которые думают дольше/глубже — не обязательно дают лучший ответ.
   reasoning_deep:
-    - gemini:2.5-flash                 # thoughts=743
+    - gemini:3.5-flash                 # thoughts=743
     - groq:qwen3-32b                   # inline <think>, 716 total tokens
     - zai:glm-4.5-flash                # r_tok=437, r_content=1205ch
     - openrouter:minimax-m2.5-free     # r_tok=290-465 avg ~378 (OpenInference, 2026-04-22)
@@ -3254,7 +3359,7 @@ chains:
     - gemini:flash-lite-latest              # Gemini 3.1 FL · AA 34 · 3.6s · google_search
     - groq:gpt-oss-120b                     # AA 33 · 1.3s · browser_search tool
     - groq:gpt-oss-20b                      # AA 25 · 0.7s · browser_search tool
-    - gemini:2.5-flash-lite                 # AA 13 · 2s · google_search, последний резерв
+    - gemini:3.5-flash-lite                 # AA 13 · 2s · google_search, последний резерв
 
   # --- translation: перевод через /v1/translate — 4 dedicated MT + 1 LLM safety net ---
   # Все 5 бесплатны permanent. Топ-4 — специализированные переводчики, 5-й —
@@ -3400,7 +3505,7 @@ chains:
     - mistral:large                    # Mistral Large 3 · AA 23 · 11.9s
     - github:gpt-4.1-mini              # GPT-4.1 mini · AA 23 · 5.4s
     - github:deepseek-v3               # DeepSeek V3 (0324) · AA 22 · 4.6s
-    - gemini:2.5-flash                 # Gemini 2.5 Flash · AA 21 · reasoning · 3.5s
+    - gemini:3.5-flash                 # Gemini 2.5 Flash · AA 21 · reasoning · 3.5s
     - openrouter:gemma-3-27b-free      # Gemma 3 27B · AA 20 · 3.1s
     - zai:glm-4.5-flash                # GLM 4.5 Flash · AA 20 · reasoning · 74s
     - openrouter:ling-flash-free       # InclusionAI Ling 2.6 · AA ~18 · 262k ctx · 1.2s
@@ -3409,7 +3514,7 @@ chains:
     - nvidia:nemotron-llama-49b        # Nemotron Llama 49B · AA 15 · 27s
     - groq:llama-3.3-70b               # Llama 3.3 70B (fastest host) · AA 15 · 2.2s
     - groq:llama-4-scout               # Llama 4 Scout · AA 14 · 0.9s
-    - gemini:2.5-flash-lite            # Gemini 2.5 Flash Lite · AA 13 · 2.6s
+    - gemini:3.5-flash-lite            # Gemini 2.5 Flash Lite · AA 13 · 2.6s
     - github:gpt-4o-mini               # GPT-4o mini · AA 13 · 3.9s
     - cerebras:llama3.1-8b             # Llama 3.1 8B (fastest) · AA 12 · 0.4s
 

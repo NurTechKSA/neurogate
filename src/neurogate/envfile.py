@@ -29,7 +29,7 @@ def read_env_file(path: Path) -> dict[str, str]:
     if not path.is_file():
         return {}
     values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         m = _LINE.match(line)
@@ -52,7 +52,7 @@ def load_env_file(path: Path | None = None) -> int:
 def set_env_value(path: Path, key: str, value: str) -> None:
     """Записать KEY=value: заменить существующую строку (в т.ч. пустую `KEY=`),
     иначе дописать в конец. Файл остаётся с правами 600."""
-    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    lines = path.read_text(encoding="utf-8-sig").splitlines() if path.is_file() else []
     new_line = f"{key}={value}"
     for i, line in enumerate(lines):
         m = _LINE.match(line)

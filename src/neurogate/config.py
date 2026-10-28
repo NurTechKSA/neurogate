@@ -1158,6 +1158,8 @@ def load_config(config_path: Path | str) -> ChainConfig:
                     continue
                 by_name[provider.name] = provider
                 ordered.append(provider)
+            if provider in resolved:
+                continue  # повтор в цепочке — лишний круг фоллбэка на ту же квоту
             resolved.append(provider)
         if not resolved:
             # Don't crash — drop the chain and let the rest of the gateway start.

@@ -42,6 +42,20 @@ say "3/6 Зависимости"
 [ -f config.yaml ] || cp config.yaml.example config.yaml
 chmod 600 .env
 
+# Порт занят чужой программой (не нашим прошлым запуском) — берём следующий свободный.
+port_busy() { lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
+if port_busy "$PORT" && ! curl -fs "http://127.0.0.1:$PORT/health" 2>/dev/null | grep -q '"ok"'; then
+  for p in $(seq $((PORT + 1)) $((PORT + 20))); do
+    if ! port_busy "$p"; then echo "Порт $PORT занят другой программой — беру $p."; PORT=$p; break; fi
+  done
+fi
+if grep -q '^NEUROGATE_PORT=' .env; then
+  sed -i.bak "s/^NEUROGATE_PORT=.*/NEUROGATE_PORT=$PORT/" .env && rm -f .env.bak
+else
+  echo "NEUROGATE_PORT=$PORT" >> .env
+fi
+export NEUROGATE_PORT="$PORT"
+
 say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
 if (: < /dev/tty) 2>/dev/null; then
   "$UV" run neurogate setup < /dev/tty || true
