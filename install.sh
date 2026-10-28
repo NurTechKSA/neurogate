@@ -73,6 +73,8 @@ if [ -n "${NEUROGATE_CODE:-}" ]; then
   "$UV" run neurogate import "$NEUROGATE_CODE" --no-restart || {
     echo "Ключи по коду не забрались. Можно ввести их вручную: neurogate setup"
   }
+elif [ "$(grep -cE '^[A-Z0-9_]+_(API_KEY|TOKEN|AUTH_KEY)=.+' .env 2>/dev/null)" -gt 0 ]; then
+  say "4/6 Ключи уже есть — мастер пропускаю (добавить ещё: neurogate setup)"
 else
   say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
   if (: < /dev/tty) 2>/dev/null; then
