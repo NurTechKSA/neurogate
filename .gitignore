@@ -27,7 +27,7 @@ scans/*
 docs/chains/
 docs/features/*
 docs/scans/
-tests/
+tests/private/
 
 # allowlist — audit pipeline needs to be in repo for CI
 !scans/audit_catalog.py
