@@ -137,6 +137,17 @@ cd "$DIR" && exec "$UV" run neurogate "\$@"
 EOF
 chmod +x "$HOME/.local/bin/neurogate"
 
+# ~/.local/bin в PATH — иначе ни neurogate, ни claude-free, ни claude не найдутся.
+case "${SHELL##*/}" in
+  zsh) RC="$HOME/.zshrc" ;;
+  bash) if [ "$(uname)" = "Darwin" ]; then RC="$HOME/.bash_profile"; else RC="$HOME/.bashrc"; fi ;;
+  *) RC="$HOME/.profile" ;;
+esac
+if ! grep -qs '\.local/bin' "$RC"; then
+  printf '\n# neurogate: claude, claude-free, neurogate, uv\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$RC"
+  NEW_PATH=1
+fi
+
 cat <<EOF
 
 ✅ Готово.
@@ -147,3 +158,7 @@ cat <<EOF
   Cursor/Cline/OpenCode:   neurogate connect cline   (или cursor, opencode, codex, continue)
   Перезапустить сервер:    neurogate restart   (setup делает это сам)
 EOF
+if [ -n "${NEW_PATH:-}" ]; then
+  echo
+  echo "⚠ Откройте НОВОЕ окно терминала — в этом команды neurogate и claude-free ещё не видны."
+fi
