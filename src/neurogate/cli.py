@@ -426,6 +426,10 @@ def _opencode_auth(token: str) -> bool | None:
     ver = subprocess.run([cli, "--version"], capture_output=True, text=True, timeout=60, check=False)
     if "v1." in ver.stdout or not ver.stdout.strip():
         return None  # 1.x берёт ключ из options.apiKey, вход не нужен
+    before = subprocess.run([cli, "auth", "list"], capture_output=True, text=True, timeout=60, check=False)
+    if "neurogate" in before.stdout:  # уже подключён — повторный вход ждал бы минуту впустую
+        subprocess.run([cli, "reload"], capture_output=True, timeout=60, check=False)
+        return True
     master, slave = os.openpty()
     try:
         proc = subprocess.Popen([cli, "auth", "login", "neurogate", "--method", "key"],
