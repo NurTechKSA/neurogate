@@ -1,0 +1,23 @@
+# Бот ключей neurogate на общем сервере 45.77.66.108 за nginx-proxy (сеть webproxy, SSL — acme-companion).
+#   cd /opt/neurogate-keybot && docker compose -f deploy/keybot/compose.yml --env-file deploy/keybot/.env up -d --build
+name: neurogate-keybot
+services:
+  keybot:
+    build: { context: ../.., dockerfile: deploy/keybot/Dockerfile }
+    image: neurogate-keybot:${TAG:-latest}
+    container_name: neurogate-keybot
+    restart: always
+    env_file: .env
+    environment:
+      PUBLIC_URL: https://${DOMAIN:?нужен DOMAIN}
+      VIRTUAL_HOST: ${DOMAIN}
+      VIRTUAL_PORT: "8080"
+      LETSENCRYPT_HOST: ${DOMAIN}
+    volumes: [data:/data]
+    networks: [webproxy]
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
+volumes:
+  data:
+networks:
+  webproxy:
+    external: true

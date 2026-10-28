@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Установка neurogate одной командой (macOS / Linux):
 #   curl -fsSL https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.sh | bash
+# С ключами из Telegram-бота: ... | NEUROGATE_CODE=NG-xxxx bash  (команду целиком выдаёт бот)
 #
 # NEUROGATE_NO_AUTOSTART=1 — не ставить автозапуск (сервер, тесты, «запущу сам»).
 #
@@ -56,11 +57,18 @@ else
 fi
 export NEUROGATE_PORT="$PORT"
 
-say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
-if (: < /dev/tty) 2>/dev/null; then
-  "$UV" run neurogate setup < /dev/tty || true
+if [ -n "${NEUROGATE_CODE:-}" ]; then
+  say "4/6 Ключи из Telegram-бота"
+  "$UV" run neurogate import "$NEUROGATE_CODE" --no-restart || {
+    echo "Ключи по коду не забрались. Можно ввести их вручную: neurogate setup"
+  }
 else
-  echo "Нет интерактивного терминала — добавьте ключи потом: neurogate setup"
+  say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
+  if (: < /dev/tty) 2>/dev/null; then
+    "$UV" run neurogate setup < /dev/tty || true
+  else
+    echo "Нет интерактивного терминала — добавьте ключи потом: neurogate setup"
+  fi
 fi
 
 say "5/6 Автозапуск сервера"
@@ -155,7 +163,7 @@ cat <<EOF
   Claude Code бесплатно:   claude-free
   Добавить ещё ключи:      neurogate setup
   Проверить ключи:         neurogate keys
-  Cursor/Cline/OpenCode:   neurogate connect cline   (или cursor, opencode, codex, continue)
+  Cursor/Cline/OpenCode:   neurogate connect cline   (или cursor, opencode, continue)
   Перезапустить сервер:    neurogate restart   (setup делает это сам)
 EOF
 if [ -n "${NEW_PATH:-}" ]; then

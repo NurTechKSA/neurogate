@@ -186,6 +186,32 @@ def restart_service() -> bool:
     return True
 
 
+def cmd_import(args: argparse.Namespace) -> int:
+    from neurogate.keydrop import DropError, fetch
+
+    try:
+        values = fetch(args.code)
+    except DropError as exc:
+        print(f"✗ {exc}")
+        return 1
+    env_path = default_env_path()
+    _ensure_env_file(env_path)
+    for key, value in values.items():
+        set_env_value(env_path, key, value)
+    names = {s["env"]: s["name"] for s in load_catalog()["services"]}
+    got = [names.get(k, k) for k in values if k in names]
+    print(f"✓ Ключи из бота сохранены ({len(got)}): {', '.join(got)}")
+    if not args.no_restart and not restart_service():
+        print("Перезапустите сервер, чтобы ключи подхватились: neurogate restart")
+    return 0
+
+
+def cmd_bot(args: argparse.Namespace) -> int:
+    from neurogate.keybot import run_bot
+
+    return run_bot(args.rest)
+
+
 def cmd_restart(args: argparse.Namespace) -> int:
     if restart_service():
         return 0
@@ -319,10 +345,10 @@ def cmd_connect(args: argparse.Namespace) -> int:
             "opencode.json → provider «neurogate» с npm @ai-sdk/openai-compatible и options.baseURL",
         )
     elif tool == "codex":
-        _print_openai_settings(
-            "Codex CLI", base, token,
-            "~/.codex/config.toml → [model_providers.neurogate] base_url, env_key; model = \"code\"",
-        )
+        print("Codex CLI пока не поддерживается: он работает только по протоколу Responses API")
+        print("(/v1/responses), а neurogate отдаёт /v1/chat/completions и /v1/messages.")
+        print("Используйте claude-free (Claude Code) или Cline / OpenCode / Continue.")
+        return 1
     else:  # pragma: no cover — argparse ограничивает choices
         return 2
     return 0
@@ -346,6 +372,15 @@ def main(argv: list[str]) -> int:
     p.add_argument("--markdown", action="store_true", help="таблица сервисов для документации")
     p.set_defaults(func=cmd_keys)
 
+    p = sub.add_parser("import", help="забрать ключи из Telegram-бота по коду NG-…")
+    p.add_argument("code")
+    p.add_argument("--no-restart", action="store_true", help="не перезапускать сервер (для установщика)")
+    p.set_defaults(func=cmd_import)
+
+    p = sub.add_parser("bot", help="запустить Telegram-бот выдачи ключей (для преподавателя)")
+    p.add_argument("rest", nargs=argparse.REMAINDER)
+    p.set_defaults(func=cmd_bot)
+
     p = sub.add_parser("restart", help="перезапустить сервер (после новых ключей)")
     p.set_defaults(func=cmd_restart)
 
@@ -355,6 +390,10 @@ def main(argv: list[str]) -> int:
     p.add_argument("tool", choices=CONNECT_TOOLS)
     p.set_defaults(func=cmd_connect)
 
+    if argv[:1] == ["bot"]:  # флаги бота (--gen-key) argparse.REMAINDER не пропускает
+        from neurogate.keybot import run_bot
+
+        return run_bot(argv[1:])
     args = parser.parse_args(argv)
     return args.func(args)
 

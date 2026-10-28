@@ -62,8 +62,14 @@ else { $envText += "`nNEUROGATE_PORT=$Port`n" }
 Set-Content -Encoding UTF8 .env $envText
 $env:NEUROGATE_PORT = $Port
 
-Say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
-& $Uv run neurogate setup
+if ($env:NEUROGATE_CODE) {
+    Say "4/6 Ключи из Telegram-бота"
+    & $Uv run neurogate import $env:NEUROGATE_CODE --no-restart
+    if ($LASTEXITCODE -ne 0) { Write-Host "Ключи по коду не забрались. Можно ввести их вручную: neurogate setup" }
+} else {
+    Say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
+    & $Uv run neurogate setup
+}
 
 Say "5/6 Автозапуск сервера при входе в Windows"
 $serve = Join-Path $Dir "neurogate-serve.cmd"
@@ -113,6 +119,6 @@ Write-Host @"
   Claude Code бесплатно:   claude-free
   Добавить ещё ключи:      neurogate setup
   Проверить ключи:         neurogate keys
-  Cursor/Cline/OpenCode:   neurogate connect cline   (или cursor, opencode, codex, continue)
+  Cursor/Cline/OpenCode:   neurogate connect cline   (или cursor, opencode, continue)
   Перезапустить сервер:    neurogate restart   (setup делает это сам)
 "@

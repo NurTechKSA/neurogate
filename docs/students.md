@@ -57,10 +57,10 @@ claude-free
 остаётся как была. Если Claude Code ещё не установлен:
 `curl -fsSL https://claude.ai/install.sh | bash` (Windows: `irm https://claude.ai/install.ps1 | iex`).
 
-### Cline, Roo Code, Kilo Code, Continue, OpenCode, Codex
+### Cline, Roo Code, Kilo Code, Continue, OpenCode
 
 ```bash
-neurogate connect cline      # или continue, opencode, codex, cursor
+neurogate connect cline      # или continue, opencode, cursor
 ```
 
 Команда покажет, что вписать в настройки: адрес `http://127.0.0.1:8765/v1`, ключ и модель `code`.
