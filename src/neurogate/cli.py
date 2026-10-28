@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import json
 import os
 import platform
 import stat
@@ -310,6 +311,47 @@ def _connect_claude_code(base: str, token: str) -> None:
         print(f"\n⚠ Папки {_bin_dir()} нет в PATH. Добавьте её или запускайте полным путём.")
 
 
+_OPENCODE_MODELS = {
+    "code": "Код — бесплатные модели (neurogate)",
+    "code_fast": "Код быстро — бесплатные модели (neurogate)",
+    "auto": "Авто — neurogate сам выберет",
+    "chat": "Чат и тексты — бесплатные модели (neurogate)",
+}
+
+
+def _connect_opencode(base: str, token: str) -> None:
+    """Прописать neurogate провайдером в глобальный конфиг OpenCode (приложение и CLI)
+    и сделать бесплатную модель моделью по умолчанию. Остальной конфиг не трогаем."""
+    path = Path.home() / ".config" / "opencode" / "opencode.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cfg: dict = {"$schema": "https://opencode.ai/config.json"}
+    if path.exists():
+        try:
+            cfg = json.loads(path.read_text(encoding="utf-8"))
+        except ValueError:
+            print(f"✗ {path} — не чистый JSON (комментарии?). Добавьте провайдер вручную:")
+            _print_openai_settings("OpenCode", base, token, "provider «neurogate», npm @ai-sdk/openai-compatible")
+            return
+        backup = path.with_suffix(".json.bak")
+        backup.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+    cfg.setdefault("provider", {})["neurogate"] = {
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "neurogate (бесплатно)",
+        "options": {"baseURL": f"{base}/v1", "apiKey": token},
+        "models": {
+            mid: {"name": title, "tool_call": True,
+                  "limit": {"context": 128000, "output": 16384}}
+            for mid, title in _OPENCODE_MODELS.items()
+        },
+    }
+    cfg["model"] = "neurogate/code"
+    cfg["small_model"] = "neurogate/code_fast"
+    path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"OpenCode настроен: {path}")
+    print("Модель по умолчанию — «neurogate/code» (бесплатно). Откройте приложение OpenCode,")
+    print("выберите папку проекта и пишите задачу в чат. Сменить модель — список моделей внизу окна.")
+
+
 def _print_openai_settings(tool: str, base: str, token: str, where: str) -> None:
     print(f"{tool}: {where}")
     print(f"  Base URL / API Base:  {base}/v1")
@@ -340,10 +382,7 @@ def cmd_connect(args: argparse.Namespace) -> int:
             "config.yaml → models: provider: openai, apiBase, apiKey, model",
         )
     elif tool == "opencode":
-        _print_openai_settings(
-            "OpenCode", base, token,
-            "opencode.json → provider «neurogate» с npm @ai-sdk/openai-compatible и options.baseURL",
-        )
+        _connect_opencode(base, token)
     elif tool == "codex":
         print("Codex CLI пока не поддерживается: он работает только по протоколу Responses API")
         print("(/v1/responses), а neurogate отдаёт /v1/chat/completions и /v1/messages.")

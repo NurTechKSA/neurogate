@@ -1206,6 +1206,7 @@ def create_app() -> FastAPI:
                 logged = False
                 try:
                     first = True
+                    want_meta = request.headers.get("x-neurogate-meta") == "1"
                     async for chunk, _p, _c in request.app.state.router.chat_stream(
                         messages=messages,
                         temperature=req.temperature,
@@ -1218,10 +1219,12 @@ def create_app() -> FastAPI:
                     ):
                         used_provider = _p
                         used_chain = _c
-                        if first:
+                        if first and want_meta:
+                            # Служебное SSE-событие только по заголовку (дашборд): AI SDK
+                            # (OpenCode и др.) разбирает каждое data: как chunk и падает на нём.
                             meta = json.dumps({"provider": _p, "chain": _c})
                             yield f"event: neurogate\ndata: {meta}\n\n".encode()
-                            first = False
+                        first = False
                         yield chunk
                     _log_call(
                         endpoint="chat",

@@ -2483,7 +2483,7 @@
       }
       const resp = await fetch("/v1/chat/completions", {
         method: "POST",
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        headers: { ...authHeaders(), "Content-Type": "application/json", "X-Neurogate-Meta": "1" },
         body: JSON.stringify(body),
       });
       if (!resp.ok || !resp.body) {
