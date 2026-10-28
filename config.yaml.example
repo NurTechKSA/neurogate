@@ -64,7 +64,8 @@ providers:
 
   - name: deepseek:v4-flash
     kind: deepseek
-    model: deepseek-v4-flash
+    # RENAMED 2026-10-29: deepseek-v4-flash retired (still accepted as alias -> V4.1-Flash-1017); api-docs.deepseek.com/quick_start/pricing
+    model: deepseek-flash   # was: deepseek-v4-flash
     api_key_env: DEEPSEEK_API_KEY
     quota_limited: true   # 💳 PAYG, общий баланс с v4-pro
     timeout: 120
@@ -235,6 +236,7 @@ providers:
 
   - name: cerebras:qwen-3-235b
     kind: cerebras
+    # GONE 2026-10-29: нет в api.cerebras.ai/public/v1/models и inference-docs.cerebras.ai/models/overview → cerebras:qwen-3.8-27b
     model: qwen-3-235b-a22b-instruct-2507
     api_key_env: CEREBRAS_API_KEY
     rpm: 5      # хедер x-ratelimit-limit-requests-minute=5 (не 30)
@@ -256,6 +258,7 @@ providers:
 
   - name: sambanova:llama-4-maverick
     kind: sambanova
+    # GONE 2026-10-29: нет в api.sambanova.ai/v1/models → sambanova:minimax-m3.1-flash / sambanova:gpt-oss-120b
     model: Llama-4-Maverick-17B-128E-Instruct
     api_key_env: SAMBANOVA_API_KEY
     rpd: 20
@@ -275,6 +278,7 @@ providers:
 
   - name: groq:llama-3.3-70b
     kind: groq
+    # GONE(free/dev tier) 2026-08-16 per console.groq.com/docs/deprecations → groq:gpt-oss-120b / groq:qwen3.8-27b
     model: llama-3.3-70b-versatile
     api_key_env: GROQ_API_KEY
     rpm: 30
@@ -382,6 +386,7 @@ providers:
 
   - name: groq:qwen3-32b
     kind: groq
+    # GONE 2026-07-17 (console.groq.com/docs/deprecations) → groq:qwen3.8-27b
     model: qwen/qwen3-32b
     api_key_env: GROQ_API_KEY
     rpm: 60
@@ -394,6 +399,7 @@ providers:
 
   - name: groq:llama-4-scout
     kind: groq
+    # GONE 2026-07-17 (console.groq.com/docs/deprecations) → groq:gpt-oss-120b
     model: meta-llama/llama-4-scout-17b-16e-instruct
     api_key_env: GROQ_API_KEY
     rpm: 30
@@ -437,6 +443,7 @@ providers:
 
   - name: groq:llama-3.1-8b-instant
     kind: groq
+    # GONE(free/dev tier) 2026-08-16 (docs/deprecations) → groq:gpt-oss-20b
     model: llama-3.1-8b-instant
     api_key_env: GROQ_API_KEY
     rpm: 30
@@ -449,6 +456,7 @@ providers:
   # awesome-free-llm-apis 2026-05: 30 RPM, 14,400 RPD (стандартный Groq free).
   - name: groq:kimi-k2-instruct
     kind: groq
+    # GONE 2025-10-10 (docs/deprecations) → groq:gpt-oss-120b
     model: kimi-k2-instruct
     api_key_env: GROQ_API_KEY
     rpm: 30
@@ -460,6 +468,7 @@ providers:
   # DeepSeek-R1 distill 70B на Groq — reasoning через LPU.
   - name: groq:deepseek-r1-distill-70b
     kind: groq
+    # GONE 2025-10-02 (docs/deprecations) → groq:gpt-oss-120b
     model: deepseek-r1-distill-llama-70b
     api_key_env: GROQ_API_KEY
     rpm: 30
@@ -472,6 +481,7 @@ providers:
 
   - name: cerebras:llama3.1-8b
     kind: cerebras
+    # GONE 2026-10-29: нет в public/v1/models → cerebras:gpt-oss-120b
     model: llama3.1-8b
     api_key_env: CEREBRAS_API_KEY
     rpm: 30
@@ -484,6 +494,7 @@ providers:
   # Меньше суточный потолок чем у llama/qwen на Cerebras (100 vs 14400) — расход бережно.
   - name: cerebras:zai-glm-4.7
     kind: cerebras
+    # GONE 2026-10-29: нет в public/v1/models → cerebras:qwen-3.8-27b
     model: zai-glm-4.7
     api_key_env: CEREBRAS_API_KEY
     rpm: 10
@@ -722,6 +733,7 @@ providers:
   # все 20 промптов получили 429 — TODO rebench завтра.
   - name: sambanova:gemma-3-12b-it
     kind: sambanova
+    # GONE 2026-10-29: нет в /v1/models → sambanova:gemma-4-31b-it
     model: gemma-3-12b-it
     api_key_env: SAMBANOVA_API_KEY
     rpd: 20
@@ -990,6 +1002,7 @@ providers:
 
   - name: poolside:laguna-xs.2
     kind: poolside
+    # UNKNOWN: в supported-models только Laguna S 2.1 / XS 2.1 / M.1 → poolside:laguna-xs-2.1
     model: poolside/laguna-xs.2
     api_key_env: POOLSIDE_API_KEY
     rpm: 60          # неопубликован, conservative
@@ -1120,6 +1133,7 @@ providers:
   # Pixtral Large — Mistral vision flagship (124B). Experiment plan rpm:4.
   - name: mistral:pixtral-large
     kind: mistral
+    # GONE: pixtral-large-2411 retired 2026-05-31 (docs.mistral.ai models) → mistral:medium-latest
     model: pixtral-large-latest
     api_key_env: MISTRAL_API_KEY
     rpm: 4
@@ -1134,6 +1148,7 @@ providers:
   # ⚠️ НЕ включать в chains до выяснения.
   - name: mistral:magistral-medium
     kind: mistral
+    # GONE: magistral-medium-2509 retired 2026-07-31 → mistral:medium-latest
     model: magistral-medium-latest
     api_key_env: MISTRAL_API_KEY
     rpm: 4
@@ -1146,6 +1161,7 @@ providers:
   # bench 2026-04-29: 5/5 OK, median 5.6s, RU стабильный.
   - name: mistral:magistral-small
     kind: mistral
+    # GONE: magistral-small-2509 retired 2026-07-31 → mistral:mistral-small-2603
     model: magistral-small-latest
     api_key_env: MISTRAL_API_KEY
     rpm: 4
@@ -1158,6 +1174,7 @@ providers:
   # bench 2026-04-29: 5/5 OK, median 15.5s — coding-focused, RU отвечает.
   - name: mistral:devstral-2512
     kind: mistral
+    # GONE: devstral-2512 retired 2026-07-31 → mistral:medium-latest (Medium 3.5) / mistral:codestral
     model: devstral-2512
     api_key_env: MISTRAL_API_KEY
     rpm: 4
@@ -1429,6 +1446,7 @@ providers:
   # когда на аккаунте появятся кредиты; не включён в image_gen chain.
   - name: together:flux-1-schnell-free
     kind: together_image
+    # GONE: нет в docs.together.ai/docs/serverless-models (free FLUX больше нет)
     model: black-forest-labs/FLUX.1-schnell-Free
     api_key_env: TOGETHER_API_KEY
     steps: 4
@@ -1566,6 +1584,7 @@ providers:
 
   - name: ovhcloud:qwen3-32b
     kind: ovhcloud
+    # GONE 2026-10-29: нет в /v1/models (anonymous) → ovhcloud:qwen3.8-27b
     model: Qwen3-32B
     rpm: 2
     timeout: 180
@@ -1576,6 +1595,7 @@ providers:
 
   - name: ovhcloud:deepseek-r1-distill-70b
     kind: ovhcloud
+    # GONE 2026-10-29: нет в /v1/models → ovhcloud:gpt-oss-120b
     model: DeepSeek-R1-Distill-Llama-70B
     rpm: 2
     timeout: 180
@@ -1596,6 +1616,7 @@ providers:
 
   - name: ovhcloud:qwen3-coder-30b
     kind: ovhcloud
+    # GONE 2026-10-29: нет в /v1/models → ovhcloud:qwen3.8-27b
     model: Qwen3-Coder-30B-A3B-Instruct
     rpm: 2
     timeout: 120
@@ -1635,6 +1656,7 @@ providers:
 
   - name: huggingface:qwen2.5-7b
     kind: huggingface
+    # GONE 2026-10-29: нет в router.huggingface.co/v1/models → huggingface:qwen3-8b
     model: Qwen/Qwen2.5-7B-Instruct
     api_key_env: HF_TOKEN
     rpd: 1000
@@ -1662,6 +1684,7 @@ providers:
 
   - name: siliconflow:qwen3-8b
     kind: siliconflow
+    # UNKNOWN: не в списке бесплатных siliconflow.cn/pricing (free: XingChenAGI/Xing4.0-29B) → siliconflow:xing4.0-29b
     model: Qwen/Qwen3-8B
     api_key_env: SILICONFLOW_API_KEY
     rpm: 1000
@@ -1675,6 +1698,7 @@ providers:
 
   - name: siliconflow:glm-4.1v-9b-thinking
     kind: siliconflow
+    # UNKNOWN: не в списке бесплатных siliconflow.cn/pricing
     model: THUDM/GLM-4.1V-9B-Thinking
     api_key_env: SILICONFLOW_API_KEY
     rpm: 1000
@@ -1687,6 +1711,7 @@ providers:
 
   - name: siliconflow:deepseek-r1-distill-7b
     kind: siliconflow
+    # UNKNOWN: не в списке бесплатных siliconflow.cn/pricing
     model: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
     api_key_env: SILICONFLOW_API_KEY
     rpm: 1000
@@ -1698,6 +1723,7 @@ providers:
 
   - name: siliconflow:deepseek-r1-0528-qwen3-8b
     kind: siliconflow
+    # UNKNOWN: не в списке бесплатных siliconflow.cn/pricing
     model: deepseek-ai/DeepSeek-R1-0528-Qwen3-8B
     api_key_env: SILICONFLOW_API_KEY
     rpm: 1000
@@ -1710,6 +1736,7 @@ providers:
   # DeepSeek-OCR — уникальная free OCR-модель (image → text).
   - name: siliconflow:deepseek-ocr
     kind: siliconflow
+    # UNKNOWN: не в списке бесплатных (free OCR: PaddlePaddle/PaddleOCR-VL-1.5)
     model: deepseek-ai/DeepSeek-OCR
     api_key_env: SILICONFLOW_API_KEY
     rpm: 1000
@@ -1830,6 +1857,7 @@ providers:
 
   - name: ollama:qwen3-coder-480b
     kind: ollama
+    # GONE 2026-10-29: нет в ollama.com/v1/models → ollama:kimi-k2.7-code
     model: "qwen3-coder:480b"
     api_key_env: OLLAMA_API_KEY
     quota_limited: true
@@ -1840,6 +1868,7 @@ providers:
 
   - name: ollama:qwen3-vl-235b
     kind: ollama
+    # GONE 2026-10-29: нет в ollama.com/v1/models → ollama:gemma4-31b (vision)
     model: "qwen3-vl:235b"
     api_key_env: OLLAMA_API_KEY
     quota_limited: true
@@ -1852,6 +1881,7 @@ providers:
 
   - name: ollama:glm-4.7
     kind: ollama
+    # GONE 2026-10-29: нет в ollama.com/v1/models → ollama:glm-5.3
     model: glm-4.7
     api_key_env: OLLAMA_API_KEY
     quota_limited: true
@@ -1863,6 +1893,7 @@ providers:
 
   - name: ollama:devstral-123b
     kind: ollama
+    # GONE 2026-10-29: нет в ollama.com/v1/models → ollama:mistral-large-4
     model: "devstral-2:123b"
     api_key_env: OLLAMA_API_KEY
     quota_limited: true
@@ -1873,6 +1904,7 @@ providers:
 
   - name: ollama:minimax-m2.5
     kind: ollama
+    # GONE 2026-10-29: нет в ollama.com/v1/models → ollama:minimax-m2.7
     model: minimax-m2.5
     api_key_env: OLLAMA_API_KEY
     quota_limited: true
@@ -2013,6 +2045,7 @@ providers:
 
   - name: yandex:art
     kind: yandex_art
+    # UNKNOWN: в доке AI Studio YandexART теперь aliceai-image-art-3.0; yandex-art/latest не упомянут
     model: yandex-art/latest
     api_key_env: YANDEX_TRANSLATE_KEY
     quota_limited: true
@@ -2295,6 +2328,7 @@ providers:
   - name: together:llama-guard-4
     kind: llama_guard
     host: together
+    # GONE: Together — "no moderation models offered via serverless"
     model: meta-llama/Llama-Guard-4-12B
     api_key_env: TOGETHER_API_KEY
     multimodal: true
@@ -2307,6 +2341,7 @@ providers:
   - name: together:qwen3-guard
     kind: llama_guard
     host: together
+    # GONE: Together — "no moderation models offered via serverless"
     model: Qwen/Qwen3-Guard-Stream-8B
     api_key_env: TOGETHER_API_KEY
     multimodal: false
@@ -2328,6 +2363,7 @@ providers:
   # верифицирован глубже. cat/claude-* и bbg/deepseek-v4-pro — bait, не подключены.
   - name: freetheai:gemini-2.5-flash
     kind: freetheai
+    # UNKNOWN: api.freetheai.xyz/v1/models отдаёт 530 (origin down) на 2026-10-29
     model: bbl/gemini-2.5-flash
     api_key_env: FREETHEAI_API_KEY
     rpm: 10  # shared bucket на все freetheai-провайдеры
@@ -2540,6 +2576,7 @@ providers:
   # --- UnoRouter — агрегатор :free-моделей, ~1 запрос/мин на модель (ротация спасает).
   - name: unorouter:gpt-oss-120b-free
     kind: unorouter
+    # UNKNOWN: нет среди :free на unorouter.com/models (видны beam/step-5-preview/xing4.0…) → unorouter:step-5-preview-free
     model: gpt-oss-120b:free
     api_key_env: UNOROUTER_API_KEY
     rpm: 1
@@ -2550,6 +2587,7 @@ providers:
 
   - name: unorouter:minimax-m3.1-flash-free
     kind: unorouter
+    # UNKNOWN: нет среди :free на unorouter.com/models
     model: minimax-m3.1-flash:free
     api_key_env: UNOROUTER_API_KEY
     rpm: 1
@@ -2839,6 +2877,549 @@ providers:
     latency_s: 0
     ru: 0
 
+  # ======================================================================
+  # === 2026-10-29 model refresh: замены умерших/переименованных моделей ===
+  # Все ID ниже взяты из публичного /v1/models провайдера или из официальной
+  # доки (источник в комментарии). quality/latency/ru = 0 → прогнать бенчи.
+  # «GUESS» = ID не подтверждён первоисточником, проверить смоуком.
+  # ======================================================================
+
+  # Groq preview (console.groq.com/docs/models) — рекомендованная замена qwen3-32b/qwen3.6-27b
+  - name: groq:qwen3.8-27b
+    kind: groq
+    model: qwen/qwen3.8-27b
+    api_key_env: GROQ_API_KEY
+    rpm: 30
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # Groq preview (console.groq.com/docs/models)
+  - name: groq:minimax-m2.7
+    kind: groq
+    model: minimaxai/minimax-m2.7
+    api_key_env: GROQ_API_KEY
+    rpm: 30
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.cerebras.ai/public/v1/models + inference-docs.cerebras.ai/models/overview (64k ctx free)
+  - name: cerebras:qwen-3.8-27b
+    kind: cerebras
+    model: qwen-3.8-27b
+    api_key_env: CEREBRAS_API_KEY
+    rpm: 5
+    timeout: 60
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.cerebras.ai/public/v1/models (65k ctx free)
+  - name: cerebras:gpt-oss-120b
+    kind: cerebras
+    model: gpt-oss-120b
+    api_key_env: CEREBRAS_API_KEY
+    rpm: 5
+    timeout: 60
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.sambanova.ai/v1/models (preview)
+  - name: sambanova:minimax-m3.1-flash
+    kind: sambanova
+    model: MiniMax-M3.1-Flash
+    api_key_env: SAMBANOVA_API_KEY
+    rpd: 20
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.sambanova.ai/v1/models + docs supported-models (preview)
+  - name: sambanova:gemma-4-31b-it
+    kind: sambanova
+    model: gemma-4-31B-it
+    api_key_env: SAMBANOVA_API_KEY
+    rpd: 20
+    timeout: 120
+    vision: true
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.sambanova.ai/v1/models (production)
+  - name: sambanova:gpt-oss-120b
+    kind: sambanova
+    model: gpt-oss-120b
+    api_key_env: SAMBANOVA_API_KEY
+    rpd: 20
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # developers.cloudflare.com/workers-ai/models/kimi-k2.7-code/ (262k ctx). Делит 10K neurons/day
+  - name: cloudflare:kimi-k2.7-code
+    kind: cloudflare
+    model: "@cf/moonshotai/kimi-k2.7-code"
+    api_key_env: CLOUDFLARE_API_KEY
+    rpd: 300
+    timeout: 180
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # developers.cloudflare.com/workers-ai/models/glm-5.3/
+  - name: cloudflare:glm-5.3
+    kind: cloudflare
+    model: "@cf/zai-org/glm-5.3"
+    api_key_env: CLOUDFLARE_API_KEY
+    rpd: 300
+    timeout: 180
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # developers.cloudflare.com/workers-ai/models/qwen3.8-27b/
+  - name: cloudflare:qwen3.8-27b
+    kind: cloudflare
+    model: "@cf/qwen/qwen3.8-27b"
+    api_key_env: CLOUDFLARE_API_KEY
+    rpd: 300
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # CF changelog 2026-05-08: рекомендованная замена устаревших моделей
+  - name: cloudflare:glm-4.7-flash
+    kind: cloudflare
+    model: "@cf/zai-org/glm-4.7-flash"
+    api_key_env: CLOUDFLARE_API_KEY
+    rpd: 300
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # docs.z.ai pricing: GLM-4.7-Flash = Free (GLM-5.3-Flash платный)
+  - name: zai:glm-4.7-flash
+    kind: zai
+    model: glm-4.7-flash
+    api_key_env: ZAI_API_KEY
+    timeout: 180
+    reasoning: true
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # docs.mistral.ai (Vibe CLI model table): codestral-latest = Codestral 25.08
+  - name: mistral:codestral
+    kind: mistral
+    model: codestral-latest
+    api_key_env: MISTRAL_API_KEY
+    rpm: 4
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # docs.mistral.ai (Vibe CLI model table): Z.ai GLM 5.3 на la Plateforme
+  - name: mistral:zai-glm-5.3
+    kind: mistral
+    model: zai-glm-5-3
+    api_key_env: MISTRAL_API_KEY
+    rpm: 4
+    timeout: 180
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # docs.mistral.ai changelog 2026-10-06: Public Preview, 1M ctx
+  - name: mistral:large-4
+    kind: mistral
+    model: mistral-large-4
+    api_key_env: MISTRAL_API_KEY
+    rpm: 4
+    timeout: 180
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # docs.cohere.com/docs/models — North code model (trial key)
+  - name: cohere:north-mini-code
+    kind: cohere_chat
+    model: north-mini-code-1.0
+    api_key_env: COHERE_API_KEY
+    rpm: 20
+    rpd: 33
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # docs.cohere.com/docs/models
+  - name: cohere:command-a-plus
+    kind: cohere_chat
+    model: command-a-plus-05-2026
+    api_key_env: COHERE_API_KEY
+    rpm: 20
+    rpd: 33
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # router.huggingface.co/v1/models — замена Qwen2.5-7B
+  - name: huggingface:qwen3-8b
+    kind: huggingface
+    model: Qwen/Qwen3-8B
+    api_key_env: HF_TOKEN
+    rpd: 1000
+    timeout: 60
+    quota_limited: true
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # router.huggingface.co/v1/models
+  - name: huggingface:kimi-k2.7-code
+    kind: huggingface
+    model: moonshotai/Kimi-K2.7-Code
+    api_key_env: HF_TOKEN
+    rpd: 1000
+    timeout: 180
+    quota_limited: true
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # router.huggingface.co/v1/models
+  - name: huggingface:glm-5.3
+    kind: huggingface
+    model: zai-org/GLM-5.3
+    api_key_env: HF_TOKEN
+    rpd: 1000
+    timeout: 180
+    quota_limited: true
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # router.huggingface.co/v1/models
+  - name: huggingface:qwen3.8-27b
+    kind: huggingface
+    model: Qwen/Qwen3.8-27B
+    api_key_env: HF_TOKEN
+    rpd: 1000
+    timeout: 120
+    quota_limited: true
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # oai.endpoints.kepler.ai.cloud.ovh.net/v1/models (anonymous)
+  - name: ovhcloud:qwen3.8-27b
+    kind: ovhcloud
+    model: Qwen3.8-27B
+    rpm: 2
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # OVH /v1/models (anonymous)
+  - name: ovhcloud:gpt-oss-120b
+    kind: ovhcloud
+    model: gpt-oss-120b
+    rpm: 2
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # OVH /v1/models (anonymous)
+  - name: ovhcloud:qwen3.5-397b
+    kind: ovhcloud
+    model: Qwen3.5-397B-A17B
+    rpm: 2
+    timeout: 180
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ollama.com/v1/models — замена qwen3-coder:480b
+  - name: ollama:kimi-k2.7-code
+    kind: ollama
+    model: kimi-k2.7-code
+    api_key_env: OLLAMA_API_KEY
+    quota_limited: true
+    timeout: 240
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ollama.com/v1/models — замена glm-4.7
+  - name: ollama:glm-5.3
+    kind: ollama
+    model: glm-5.3
+    api_key_env: OLLAMA_API_KEY
+    quota_limited: true
+    timeout: 240
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ollama.com/v1/models — замена minimax-m2.5
+  - name: ollama:minimax-m2.7
+    kind: ollama
+    model: minimax-m2.7
+    api_key_env: OLLAMA_API_KEY
+    quota_limited: true
+    timeout: 240
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ollama.com/v1/models — замена qwen3-vl:235b (vision — GUESS по функции)
+  - name: ollama:gemma4-31b
+    kind: ollama
+    model: "gemma4:31b"
+    api_key_env: OLLAMA_API_KEY
+    quota_limited: true
+    timeout: 240
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ollama.com/v1/models — замена devstral-2:123b (GUESS по функции)
+  - name: ollama:mistral-large-4
+    kind: ollama
+    model: mistral-large-4
+    api_key_env: OLLAMA_API_KEY
+    quota_limited: true
+    timeout: 240
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ollama.com/v1/models — новая
+  - name: ollama:deepseek-v4.1-flash
+    kind: ollama
+    model: deepseek-v4.1-flash
+    api_key_env: OLLAMA_API_KEY
+    quota_limited: true
+    timeout: 240
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.llm7.io/v1/models
+  - name: llm7:kimi-k2.7-code
+    kind: llm7
+    model: kimi-k2.7-code
+    api_key_env: LLM7_API_KEY
+    rpm: 120
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.llm7.io/v1/models
+  - name: llm7:glm-5.3
+    kind: llm7
+    model: glm-5.3
+    api_key_env: LLM7_API_KEY
+    rpm: 120
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api-inference.modelscope.cn/v1/models
+  - name: modelscope:qwen3.8-27b
+    kind: modelscope
+    model: Qwen/Qwen3.8-27B
+    api_key_env: MODELSCOPE_API_KEY
+    rpd: 500
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api-inference.modelscope.cn/v1/models
+  - name: modelscope:deepseek-v4.1-flash
+    kind: modelscope
+    model: deepseek-ai/DeepSeek-V4.1-Flash
+    api_key_env: MODELSCOPE_API_KEY
+    rpd: 500
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.kilo.ai/api/gateway/models (:free)
+  - name: kilo:laguna-s-2.1
+    kind: kilo
+    model: poolside/laguna-s-2.1:free
+    api_key_env: KILO_API_KEY
+    rpm: 3
+    timeout: 180
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # api.kilo.ai/api/gateway/models (:free)
+  - name: kilo:nemotron-3.5-lightning
+    kind: kilo
+    model: nvidia/nemotron-3.5-lightning:free
+    api_key_env: KILO_API_KEY
+    rpm: 3
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ai.hackclub.com/proxy/v1/models
+  - name: hackclub:kimi-k2.7-code
+    kind: hackclub
+    model: moonshotai/kimi-k2.7-code
+    api_key_env: HACKCLUB_AI_API_KEY
+    rpm: 10
+    timeout: 180
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ai.hackclub.com/proxy/v1/models
+  - name: hackclub:glm-5.3
+    kind: hackclub
+    model: z-ai/glm-5.3
+    api_key_env: HACKCLUB_AI_API_KEY
+    rpm: 10
+    timeout: 180
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ai.hackclub.com/proxy/v1/models
+  - name: hackclub:qwen3.8-27b
+    kind: hackclub
+    model: qwen/qwen3.8-27b
+    api_key_env: HACKCLUB_AI_API_KEY
+    rpm: 10
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # ai.hackclub.com/proxy/v1/models
+  - name: hackclub:deepseek-v4.1-flash
+    kind: hackclub
+    model: deepseek/deepseek-v4.1-flash
+    api_key_env: HACKCLUB_AI_API_KEY
+    rpm: 10
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # docs.poolside.ai/api/overview (пример с этим ID), 1M ctx
+  - name: poolside:laguna-s-2.1
+    kind: poolside
+    model: poolside/laguna-s-2.1
+    api_key_env: POOLSIDE_API_KEY
+    rpm: 60
+    timeout: 240
+    reasoning: true
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # GUESS: ID по аналогии с laguna-s-2.1 (модель Laguna XS 2.1 есть в docs.poolside.ai supported-models)
+  - name: poolside:laguna-xs-2.1
+    kind: poolside
+    model: poolside/laguna-xs-2.1
+    api_key_env: POOLSIDE_API_KEY
+    rpm: 60
+    timeout: 240
+    reasoning: true
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # developers.sber.ru/docs/ru/gigachat/models/gigachat-3-ultra — freemium для физлиц
+  - name: gigachat:3-ultra
+    kind: gigachat
+    model: GigaChat-3-Ultra
+    api_key_env: GIGACHAT_AUTH_KEY
+    scope: GIGACHAT_API_PERS
+    verify_ssl: false
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # siliconflow.cn/pricing — бесплатная LLM
+  - name: siliconflow:xing4.0-29b
+    kind: siliconflow
+    model: XingChenAGI/Xing4.0-29B
+    api_key_env: SILICONFLOW_API_KEY
+    rpm: 1000
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # GUESS: unorouter.com/models (SPA, ID снят без префикса провайдера)
+  - name: unorouter:step-5-preview-free
+    kind: unorouter
+    model: step-5-preview:free
+    api_key_env: UNOROUTER_API_KEY
+    rpm: 1
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # opencode.ai/zen/v1/models (keyless free)
+  - name: opencode:deepseek-v4.1-flash-free
+    kind: opencode
+    model: deepseek-v4.1-flash-free
+    api_key_env: OPENCODE_API_KEY   # необязателен
+    rpm: 10
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # opencode.ai/zen/v1/models (keyless free)
+  - name: opencode:glm-5.3-flash-free
+    kind: opencode
+    model: glm-5.3-flash-free
+    api_key_env: OPENCODE_API_KEY   # необязателен
+    rpm: 10
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  # opencode.ai/zen/v1/models (keyless free)
+  - name: opencode:mimo-v2.6-flash-free
+    kind: opencode
+    model: mimo-v2.6-flash-free
+    api_key_env: OPENCODE_API_KEY   # необязателен
+    rpm: 10
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
 # ==================================================================================
 # Цепочки. Порядок = приоритет фоллбэка.
 # ==================================================================================
@@ -2852,6 +3433,18 @@ chains:
   # доступен через прямой `model=deepseek:v4-flash` после пополнения.
   chat:
     # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    # --- 2026-10-29 model refresh: замены умерших (см. model-refresh.md) ---
+    - sambanova:minimax-m3.1-flash
+    - cerebras:qwen-3.8-27b
+    - groq:qwen3.8-27b
+    - gigachat:3-ultra
+    - cohere:command-a-plus
+    - sambanova:gemma-4-31b-it
+    - zai:glm-4.7-flash
+    - ovhcloud:qwen3.8-27b
+    - modelscope:qwen3.8-27b
+    - hackclub:glm-5.3
+    - opencode:deepseek-v4.1-flash-free
     - nvidia:minimax-m3.1-flash
     - gemini:3.5-flash
     - openrouter:nemotron-3.5-super-vl-free
@@ -3060,6 +3653,24 @@ chains:
     #  по tool_call_id — Claude Code через claude-code-router больше не падает 400).
     # deepseek:v4-pro убран 2026-05-12 — см. комментарий в chain `chat`
     # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    # --- 2026-10-29 model refresh: замены умерших (см. model-refresh.md) ---
+    - cloudflare:kimi-k2.7-code
+    - hackclub:kimi-k2.7-code
+    - ollama:kimi-k2.7-code
+    - huggingface:kimi-k2.7-code
+    - llm7:kimi-k2.7-code
+    - mistral:zai-glm-5.3
+    - cloudflare:glm-5.3
+    - hackclub:glm-5.3
+    - ollama:glm-5.3
+    - poolside:laguna-s-2.1
+    - kilo:laguna-s-2.1
+    - cohere:north-mini-code
+    - mistral:codestral
+    - sambanova:minimax-m3.1-flash
+    - groq:qwen3.8-27b
+    - cerebras:qwen-3.8-27b
+    - opencode:deepseek-v4.1-flash-free
     - nvidia:nemotron-3-ultra-550b
     - nvidia:minimax-m3.1-flash
     - gemini:3.6-flash
@@ -3136,6 +3747,16 @@ chains:
   # Топ-приоритет: code-specialized + agentic-friendly.
   code_fast:
     # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    # --- 2026-10-29 model refresh: замены умерших (см. model-refresh.md) ---
+    - cerebras:qwen-3.8-27b
+    - cerebras:gpt-oss-120b
+    - groq:qwen3.8-27b
+    - sambanova:minimax-m3.1-flash
+    - poolside:laguna-xs-2.1
+    - cloudflare:glm-4.7-flash
+    - mistral:codestral
+    - hackclub:deepseek-v4.1-flash
+    - opencode:glm-5.3-flash-free
     - nvidia:minimax-m3.1-flash
     - nvidia:nemotron-3.5-lightning
     - gemini:3.5-flash-lite
