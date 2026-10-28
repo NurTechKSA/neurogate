@@ -343,6 +343,18 @@ def create_bot_app() -> FastAPI:
                 log.exception("polling error")
                 await asyncio.sleep(3)
 
+    async def register_webhook() -> None:
+        # Сразу после выкладки домен может ещё не резолвиться или SSL не выпущен —
+        # Telegram отвергнет вебхук. Повторяем раз в минуту, пока не примет.
+        while True:
+            ok = await tg.call("setWebhook", url=f"{public_url}/tg/{hook_secret}",
+                               secret_token=hook_secret,
+                               allowed_updates=["message", "callback_query"])
+            if ok:
+                log.info("webhook установлен: %s/tg/…", public_url)
+                return
+            await asyncio.sleep(60)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await tg.call("setMyCommands", commands=[
@@ -357,8 +369,7 @@ def create_bot_app() -> FastAPI:
         else:
             if not hook_secret:
                 raise RuntimeError("TELEGRAM_WEBHOOK_SECRET обязателен в режиме webhook")
-            await tg.call("setWebhook", url=f"{public_url}/tg/{hook_secret}", secret_token=hook_secret,
-                          allowed_updates=["message", "callback_query"])
+            task = asyncio.create_task(register_webhook())
         try:
             yield
         finally:
