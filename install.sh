@@ -153,7 +153,7 @@ fi
 # Короткая команда `neurogate` из любой папки.
 cat > "$HOME/.local/bin/neurogate" <<EOF
 #!/bin/sh
-cd "$DIR" && exec "$UV" run neurogate "\$@"
+NEUROGATE_CALLER_DIR="\$PWD" && export NEUROGATE_CALLER_DIR && cd "$DIR" && exec "$UV" run neurogate "\$@"
 EOF
 chmod +x "$HOME/.local/bin/neurogate"
 

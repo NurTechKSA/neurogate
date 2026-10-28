@@ -305,6 +305,34 @@ footer { font: 400 13px/1.6 var(--f-mono); color: var(--amber-dim); border-top: 
     </article>
   </section>
 
+  <section class="ops" aria-labelledby="orch-h">
+    <div class="lvl">
+      <h2 class="section-h" id="orch-h">&gt; РЕЖИМ ОРКЕСТРАТОРА</h2>
+      <span class="lvl-tag">для тех, у кого Claude или ChatGPT за $20</span>
+    </div>
+    <article class="op">
+      <div class="num">∞<small>РАСТЯНИ</small></div>
+      <div class="body">
+        <h3>Подписка думает — бесплатные модели пашут</h3>
+        <p>Работаешь в Codex или Claude Code, но лимита подписки не хватает? Включи режим
+          оркестратора: платная модель составляет план и проверяет результат, а код пишут
+          бесплатные модели через neurogate. Лимит подписки уходит только на «мозги».</p>
+        <ul>
+          <li>Нужен уровень 2 (neurogate установлен).</li>
+          <li>В папке проекта выполни команду ниже — она добавит инструкцию в <code>AGENTS.md</code> (Codex) и <code>CLAUDE.md</code> (Claude Code).</li>
+          <li>Для всех проектов сразу: <code>neurogate connect orchestrator --global</code>.</li>
+        </ul>
+        <div class="term cmd">
+          <pre id="orch-cmd">neurogate connect orchestrator</pre>
+          <button class="copy" type="button" data-copy="orch-cmd">Копировать</button>
+        </div>
+        <p class="note">Codex запускает команды в песочнице без сети — разреши ему выход на
+          <b>127.0.0.1</b>, когда он спросит, или навсегда: в <code>~/.codex/config.toml</code>
+          секция <code>[sandbox_workspace_write]</code>, <code>network_access = true</code>.</p>
+      </div>
+    </article>
+  </section>
+
   <section aria-labelledby="cheat-h">
     <h2 class="section-h" id="cheat-h">&gt; ЧИТ-КОДЫ</h2>
     <p class="note">Набираются в терминале. Работают из любой папки.</p>
@@ -314,6 +342,8 @@ footer { font: 400 13px/1.6 var(--f-mono); color: var(--amber-dim); border-top: 
         <tr><td>neurogate setup</td><td>Добавить ключи — мастер со ссылками на каждый сервис.</td></tr>
         <tr><td>neurogate keys</td><td>Какие ключи есть и живы ли они.</td></tr>
         <tr><td>neurogate import NG-…</td><td>Забрать новые ключи из бота (бот выдаёт эту команду).</td></tr>
+        <tr><td>neurogate delegate "задача"</td><td>Поручить задачу бесплатному агенту — он сам правит файлы в текущей папке.</td></tr>
+        <tr><td>neurogate ask "вопрос"</td><td>Быстрый ответ бесплатной модели прямо в терминале.</td></tr>
         <tr><td>neurogate restart</td><td>Перезапустить шлюз.</td></tr>
         <tr><td>claude-free</td><td>Claude Code в терминале на бесплатных моделях — для любителей чёрного экрана.</td></tr>
         <tr><td>neurogate connect opencode</td><td>Заново подключить OpenCode, если модель пропала.</td></tr>

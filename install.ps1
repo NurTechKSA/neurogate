@@ -98,6 +98,7 @@ Say "6/6 Подключение программ"
 @"
 @echo off
 set PYTHONUTF8=1
+set NEUROGATE_CALLER_DIR=%CD%
 cd /d "$Dir"
 "$Uv" run neurogate %*
 "@ | Set-Content -Encoding ASCII (Join-Path $Bin "neurogate.cmd")

@@ -11,8 +11,10 @@ import getpass
 import json
 import os
 import platform
+import shutil
 import stat
 import subprocess
+import time
 import sys
 import webbrowser
 from importlib import resources
@@ -369,17 +371,22 @@ def _bin_dir() -> Path:
     return d
 
 
-def _connect_claude_code(base: str, token: str) -> None:
-    env = {
+def _free_claude_env(base: str, token: str, model: str = "code") -> dict[str, str]:
+    """Переменные, с которыми Claude Code ходит в neurogate вместо Anthropic."""
+    return {
         "ANTHROPIC_BASE_URL": base,
         "ANTHROPIC_AUTH_TOKEN": token,
-        "ANTHROPIC_MODEL": "code",
-        "ANTHROPIC_DEFAULT_OPUS_MODEL": "code",
-        "ANTHROPIC_DEFAULT_SONNET_MODEL": "code",
+        "ANTHROPIC_MODEL": model,
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": model,
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": model,
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "code_fast",
-        "CLAUDE_CODE_SUBAGENT_MODEL": "code",
+        "CLAUDE_CODE_SUBAGENT_MODEL": model,
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     }
+
+
+def _connect_claude_code(base: str, token: str) -> None:
+    env = _free_claude_env(base, token)
     if platform.system() == "Windows":
         path = _bin_dir() / "claude-free.cmd"
         lines = ["@echo off"] + [f"set {k}={v}" for k, v in env.items()] + ["claude %*"]
@@ -404,6 +411,37 @@ _OPENCODE_MODELS = {
     "auto": "Авто — neurogate сам выберет",
     "chat": "Чат и тексты — бесплатные модели (neurogate)",
 }
+
+
+def _opencode_auth(token: str) -> bool | None:
+    """OpenCode 2.x показывает в окне только «подключённых» провайдеров (`auth login`).
+    Команде нужен интерактивный терминал — даём ей псевдотерминал и вводим токен.
+    None — не к чему подключать (нет CLI 2.x или нет pty, как на Windows)."""
+    cli = _opencode_cli(prefer_app=True)
+    if not cli:
+        return None
+    try:
+        import pty  # noqa: F401 — только POSIX
+    except ImportError:
+        return None
+    ver = subprocess.run([cli, "--version"], capture_output=True, text=True, timeout=60, check=False)
+    if "v1." in ver.stdout or not ver.stdout.strip():
+        return None  # 1.x берёт ключ из options.apiKey, вход не нужен
+    master, slave = os.openpty()
+    try:
+        proc = subprocess.Popen([cli, "auth", "login", "neurogate", "--method", "key"],
+                                stdin=slave, stdout=slave, stderr=slave, cwd=Path.home())
+        time.sleep(5)
+        os.write(master, f"{token}\r".encode())
+        try:
+            proc.wait(timeout=60)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    finally:
+        os.close(slave)
+        os.close(master)
+    listed = subprocess.run([cli, "auth", "list"], capture_output=True, text=True, timeout=60, check=False)
+    return "neurogate" in listed.stdout
 
 
 def _connect_opencode(base: str, token: str) -> None:
@@ -450,6 +488,12 @@ def _connect_opencode(base: str, token: str) -> None:
     cfg["small_model"] = "neurogate/code_fast"
     path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"OpenCode настроен: {path}")
+    authed = _opencode_auth(token)
+    if authed is False:
+        print("⚠ Не удалось подключить neurogate внутри OpenCode автоматически. В OpenCode: список")
+        print(f"  моделей → «+» → «neurogate (бесплатно)» → вставьте ключ {token}")
+    elif authed:
+        print("Провайдер «neurogate (бесплатно)» подключён в OpenCode.")
     print("Модель по умолчанию — «neurogate/code» (бесплатно). Если OpenCode открыт — закройте его")
     print("полностью (⌘Q / Alt+F4) и откройте снова, тогда модели neurogate появятся в списке.")
 
@@ -466,6 +510,17 @@ def cmd_connect(args: argparse.Namespace) -> int:
     tool = args.tool
     if tool == "claude-code":
         _connect_claude_code(base, token)
+    elif tool == "orchestrator":
+        targets = ([Path.home() / ".codex" / "AGENTS.md", Path.home() / ".claude" / "CLAUDE.md"]
+                   if args.global_ else [_caller_dir() / "AGENTS.md", _caller_dir() / "CLAUDE.md"])
+        for t in targets:
+            print(f"{t}: {_write_orchestrator(t)}")
+        where = "во всех проектах" if args.global_ else "в этой папке"
+        print(f"Готово: Codex и Claude Code {where} будут поручать работу бесплатным моделям")
+        print("через `neurogate delegate` / `neurogate ask`, а подписку тратить на план и проверку.")
+        print("Codex: разрешите команде выход в локальную сеть (127.0.0.1) — иначе песочница её не")
+        print("пустит. Постоянно: в ~/.codex/config.toml секция [sandbox_workspace_write],")
+        print("network_access = true.")
     elif tool == "cursor":
         _print_openai_settings(
             "Cursor", base, token,
@@ -495,7 +550,126 @@ def cmd_connect(args: argparse.Namespace) -> int:
     return 0
 
 
-CONNECT_TOOLS = ["claude-code", "cursor", "cline", "continue", "opencode", "codex"]
+# ---------------------------------------------------------------- orchestrator
+
+ORCHESTRATOR_MARK = "<!-- neurogate:orchestrator -->"
+ORCHESTRATOR_BLOCK = f"""{ORCHESTRATOR_MARK}
+## Бесплатные исполнители (neurogate)
+
+Ты — оркестратор: понимаешь задачу, дробишь её на шаги и проверяешь результат. Объёмную
+работу — написание и правку кода, тесты, рефакторинг, документацию — поручай бесплатным
+моделям через neurogate, чтобы не тратить лимит подписки:
+
+- `neurogate delegate "<задача>"` — бесплатный агент сам правит файлы в текущей папке и
+  возвращает короткий отчёт и список изменённых файлов. Он НЕ видит этот разговор: пиши
+  задачу полностью — какие файлы, что сделать, как проверить, что считается готовым.
+- `neurogate ask "<вопрос>"` — быстрый ответ бесплатной модели без правки файлов
+  (объяснить код, предложить варианты, написать текст).
+
+Порядок: большие задачи дроби на шаги по 1–3 файла → `delegate` → посмотри `git diff` и
+запусти тесты → если плохо, поручи исправление с конкретикой (что сломано, где, как надо).
+Сам пиши код, только если объяснить дольше, чем сделать. Команды идут 1–10 минут — ставь
+большой таймаут. Команде нужен доступ к локальной сети (127.0.0.1) — в песочнице разреши
+её запуск. Не отвечает neurogate — `neurogate doctor`.
+"""
+
+
+def _caller_dir() -> Path:
+    """Папка, из которой человек вызвал `neurogate`: обёртка в ~/.local/bin переходит в
+    ~/neurogate (там .env и config.yaml) и передаёт исходную папку в NEUROGATE_CALLER_DIR."""
+    return Path(os.getenv("NEUROGATE_CALLER_DIR") or os.getcwd())
+
+
+def _write_orchestrator(path: Path) -> str:
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    if ORCHESTRATOR_MARK in text:
+        return "уже есть"
+    sep = "\n\n" if text and not text.endswith("\n\n") else ""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text + sep + ORCHESTRATOR_BLOCK, encoding="utf-8")
+    return "дописано" if text else "создан"
+
+
+WORKER_PROMPT = (
+    "Ты исполнитель, задачу поручил другой агент; он не видит твою работу, только отчёт. "
+    "Сделай задачу целиком, правя файлы в текущей папке, и проверь результат (запусти тесты "
+    "или код, если можно). В конце — короткий отчёт до 15 строк: что изменил (файлы), как "
+    "проверил, что не получилось или требует решения."
+)
+
+
+def _opencode_cli(prefer_app: bool = False) -> str | None:
+    """CLI OpenCode: из PATH или встроенная в приложение. prefer_app — сначала встроенная
+    (её фоновый сервис и показывает модели в окне приложения)."""
+    found = shutil.which("opencode")
+    if found and not prefer_app:
+        return found
+    for cand in ("/Applications/OpenCode.app/Contents/Resources/opencode-cli",
+                 str(Path.home() / "Applications/OpenCode.app/Contents/Resources/opencode-cli"),
+                 str(Path(os.getenv("LOCALAPPDATA", "")) / "Programs/OpenCode/resources/opencode-cli.exe")):
+        if cand and Path(cand).exists():
+            return cand
+    return found
+
+
+def cmd_delegate(args: argparse.Namespace) -> int:
+    base, token = _gateway()
+    if not _gateway_alive(base):
+        print(f"✗ neurogate не отвечает на {base}. Запустите: neurogate restart (или neurogate doctor)")
+        return 2
+    task = " ".join(args.task)
+    workdir = (_caller_dir() / args.dir).resolve()
+    # Окружение оркестратора (Claude Code, Codex) не должно утечь исполнителю
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith(("ANTHROPIC_", "CLAUDECODE", "CLAUDE_CODE_", "CODEX_"))}
+    env["PWD"] = str(workdir)  # OpenCode берёт проект из PWD, а не из cwd процесса
+    opencode = None if args.worker == "claude" else _opencode_cli()
+    claude = shutil.which("claude") or str(Path.home() / ".local/bin/claude")
+    if opencode:
+        cmd = [opencode, "run", "-m", f"neurogate/{args.model}", f"{WORKER_PROMPT}\n\nЗадача:\n{task}"]
+        who = "OpenCode"
+    elif Path(claude).exists():
+        env.update(_free_claude_env(base, token, args.model))
+        cmd = [claude, "-p", task, "--permission-mode", "acceptEdits",
+               "--allowedTools", "Read", "Edit", "Write", "Glob", "Grep", "Bash",
+               "--append-system-prompt", WORKER_PROMPT, "--output-format", "text"]
+        who = "Claude Code"
+    else:
+        print("✗ Нет исполнителя: поставьте OpenCode (https://opencode.ai/download) "
+              "или Claude Code (curl -fsSL https://claude.ai/install.sh | bash)")
+        return 2
+    print(f"▶ Исполнитель: {who} на бесплатных моделях (neurogate/{args.model}), папка {workdir}",
+          flush=True)
+    r = subprocess.run(cmd, cwd=workdir, env=env, check=False)
+    in_git = subprocess.run(["git", "-C", str(workdir), "rev-parse"],
+                            capture_output=True, check=False).returncode == 0
+    if in_git:
+        st = subprocess.run(["git", "-C", str(workdir), "status", "--short"],
+                            capture_output=True, text=True, check=False).stdout.strip()
+        print("\n── изменённые файлы (git status) ──\n" + (st or "нет изменений"))
+    return r.returncode
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    base, token = _gateway()
+    try:
+        r = httpx.post(f"{base}/v1/chat/completions", timeout=300,
+                       headers={"Authorization": f"Bearer {token}"},
+                       json={"model": args.model,
+                             "messages": [{"role": "user", "content": " ".join(args.question)}]})
+        data = r.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        print(f"✗ neurogate не отвечает ({type(exc).__name__}). Запустите: neurogate doctor")
+        return 2
+    if r.status_code != 200:
+        print(f"✗ {data.get('detail') or data.get('error')}")
+        return 1
+    print(data["choices"][0]["message"]["content"])
+    print(f"\n— {data.get('model')} (бесплатно)", file=sys.stderr)
+    return 0
+
+
+CONNECT_TOOLS = ["claude-code", "orchestrator", "cursor", "cline", "continue", "opencode", "codex"]
 
 
 def main(argv: list[str]) -> int:
@@ -530,8 +704,22 @@ def main(argv: list[str]) -> int:
 
     sub.add_parser("serve", help="запустить сервер (то же, что `neurogate` без аргументов)")
 
+    p = sub.add_parser("delegate", help="поручить задачу бесплатному агенту (сам правит файлы)")
+    p.add_argument("task", nargs="+")
+    p.add_argument("--dir", default=".", help="папка проекта (по умолчанию текущая)")
+    p.add_argument("--model", default="code", help="модель neurogate: code, code_fast, auto")
+    p.add_argument("--worker", choices=["auto", "opencode", "claude"], default="auto")
+    p.set_defaults(func=cmd_delegate)
+
+    p = sub.add_parser("ask", help="быстрый вопрос бесплатной модели (без правки файлов)")
+    p.add_argument("question", nargs="+")
+    p.add_argument("--model", default="auto")
+    p.set_defaults(func=cmd_ask)
+
     p = sub.add_parser("connect", help="подключить инструмент к neurogate")
     p.add_argument("tool", choices=CONNECT_TOOLS)
+    p.add_argument("--global", dest="global_", action="store_true",
+                   help="orchestrator: для всех проектов (~/.codex/AGENTS.md, ~/.claude/CLAUDE.md)")
     p.set_defaults(func=cmd_connect)
 
     if argv[:1] == ["bot"]:  # флаги бота (--gen-key) argparse.REMAINDER не пропускает
