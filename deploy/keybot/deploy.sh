@@ -20,6 +20,7 @@ if [[ "${1:-}" == "--init-env" ]]; then
     "$DOMAIN" "$token" "$storage_key" "$(openssl rand -hex 24)" \
     | $SSH "$VPS" "umask 077 && cat > $DIR/deploy/keybot/.env"
   echo "Сохранено на сервере ($DIR/deploy/keybot/.env, права 600)."
+  echo "Напишите Claude: готово"
   exit 0
 fi
 
