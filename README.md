@@ -10,6 +10,14 @@
 
 > ⚠️ **Status: alpha / early access (v0.1).** Проект на активной разработке, API и конфиг могут меняться без особых церемоний до v1.0. Баги ожидаемы — открой [issue](../../issues/new?template=bug_report.md), посмотрим (шаблон отчёта — [docs/bug-report.md](docs/bug-report.md)). Звёздочка на репе и репорты помогают приоритетам.
 
+> 🎓 **Для учеников — установка одной командой, мастер ключей со ссылками и Claude Code на бесплатных моделях:** [docs/students.md](docs/students.md)
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.sh | bash
+> ```
+>
+> Windows: `irm https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.ps1 | iex`
+
 ![Dashboard](docs/img/dashboard.png)
 
 ## Что это и кому нужно

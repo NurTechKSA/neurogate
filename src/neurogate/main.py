@@ -276,6 +276,25 @@ def create_app() -> FastAPI:
             return model_field
         return router.default_chain
 
+    def _require_chat_keys(requested: str | None, chain_name: str) -> None:
+        """Без единого LLM-ключа default (`chat`) выпадает и подменяется первой живой
+        цепочкой — обычно `translation`. Чат-запрос туда уходить не должен: отдаём 503
+        с подсказкой, какой ключ добавить, вместо ошибки «translation-only»."""
+        if not cfg.dropped_default or chain_name != router.default_chain:
+            return
+        if requested == chain_name:
+            return  # клиент сам явно попросил эту цепочку
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"Нет ни одного ключа для чата (цепочка '{cfg.dropped_default}' пустая). "
+                "Добавьте хотя бы один бесплатный ключ: выполните `neurogate setup` "
+                "и перезапустите сервер. Быстрее всего — GROQ_API_KEY "
+                "(https://console.groq.com/keys) или GEMINI_API_KEY "
+                "(https://aistudio.google.com/apikey)."
+            ),
+        )
+
     def _log_call(
         *,
         endpoint: str,
@@ -512,6 +531,7 @@ def create_app() -> FastAPI:
         # Mutate cfg in-place so closures that captured `cfg` see the new state.
         cfg.chains = new_chains_resolved
         cfg.default = new_default
+        cfg.dropped_default = None
 
         log.info("chains updated via /v1/chains: %d chains, default=%s, backup=%s",
                  len(normalized), new_default, backup_path)
@@ -636,6 +656,7 @@ def create_app() -> FastAPI:
             log.info("auto-router: picked chain=%s reason=%s", chain_name, auto_reason)
         else:
             chain_name = _pick_chain(req.model)
+        _require_chat_keys(req.model, chain_name)
         # Eagerly resolve chain so ad-hoc `kind:model_id` surfaces a clean 400
         # ("OPENAI_API_KEY not set") instead of a 502 from the chat fallback path.
         # Idempotent: cached after first build.
@@ -2411,6 +2432,7 @@ def create_app() -> FastAPI:
         _authorize(authorization)
         openai_args = request_to_openai(req)
         chain_name = _pick_chain(req.model)
+        _require_chat_keys(req.model, chain_name)
         exclude_models = _parse_exclude(request)
 
         if req.stream:
@@ -2553,8 +2575,19 @@ def create_app() -> FastAPI:
 
 
 def run() -> None:
+    import sys
+
+    from neurogate.envfile import load_env_file
+
+    if len(sys.argv) > 1 and sys.argv[1] not in ("serve",):
+        from neurogate.cli import main as cli_main
+
+        sys.exit(cli_main(sys.argv[1:]))
+
     import uvicorn
 
+    # uv run не читает .env сам — без этого ключи работали только под systemd.
+    load_env_file()
     host = os.getenv("NEUROGATE_HOST", "127.0.0.1")
     port = int(os.getenv("NEUROGATE_PORT", "8765"))
     uvicorn.run("neurogate.main:create_app", host=host, port=port, factory=True, log_level="info")

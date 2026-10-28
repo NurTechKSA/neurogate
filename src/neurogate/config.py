@@ -245,6 +245,10 @@ class ChainConfig:
     default: str
     all_providers: list[Provider]
     skipped: list[SkippedProvider] = field(default_factory=list)
+    # Имя default_chain из конфига, если она выпала целиком (нет ни одного ключа).
+    # Тогда default подменён первой живой цепочкой (обычно translation), и чат-запросы
+    # должны получать понятную ошибку «добавь ключ», а не ответ переводчика.
+    dropped_default: str | None = None
 
 
 # Ad-hoc model resolution. Юзер шлёт `model: "openai:gpt-5-foo"` — мы видим, что
@@ -1133,9 +1137,18 @@ def load_config(config_path: Path | str) -> ChainConfig:
         log.warning(
             "default_chain=%r is empty; falling back to %r", default, next(iter(chains))
         )
+        dropped_default = default
         default = next(iter(chains))
+    else:
+        dropped_default = None
 
-    return ChainConfig(chains=chains, default=default, all_providers=ordered, skipped=skipped)
+    return ChainConfig(
+        chains=chains,
+        default=default,
+        all_providers=ordered,
+        skipped=skipped,
+        dropped_default=dropped_default,
+    )
 
 
 def load_providers(config_path: Path) -> list[Provider]:

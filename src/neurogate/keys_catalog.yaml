@@ -1,0 +1,437 @@
+# Каталог сервисов для `neurogate setup`: где взять ключ, что он даёт, как проверить.
+#
+# priority: 1 — ставить первыми (быстро, без карты, хорошо кодят)
+#           2 — дополнительная ёмкость и модели
+#           3 — нишевые или с неудобствами (телефон РФ, верификация, ежедневный чек-ин)
+# check:    как проверить ключ без расхода квоты. auth: bearer | query | none.
+#           401/403 → ключ неверный; 2xx → принят; остальное → «не удалось проверить».
+# Ссылки сверены 2026-10-28. Сервис закрылся или сменил адрес — правь здесь, код не трогай.
+
+services:
+  - id: groq
+    name: Groq
+    env: GROQ_API_KEY
+    priority: 1
+    gives: чат и код, очень быстрые ответы, распознавание речи (Whisper)
+    limits: 30 запросов/мин, 1–14 тыс. запросов/день на модель
+    needs: только почта или Google/GitHub
+    signup: https://console.groq.com
+    key_url: https://console.groq.com/keys
+    steps:
+      - Войдите через Google или GitHub
+      - Нажмите «Create API Key», назовите neurogate
+      - Скопируйте ключ (начинается с gsk_) — он показывается один раз
+    check: {url: "https://api.groq.com/openai/v1/models", auth: bearer}
+
+  - id: gemini
+    name: Google Gemini (AI Studio)
+    env: GEMINI_API_KEY
+    priority: 1
+    gives: сильный код, длинный контекст (1М токенов), картинки на вход, веб-поиск
+    limits: 10 запросов/мин, 250–1500 запросов/день
+    needs: Google-аккаунт; из РФ нужен VPN при регистрации
+    signup: https://aistudio.google.com
+    key_url: https://aistudio.google.com/apikey
+    steps:
+      - Войдите Google-аккаунтом
+      - Нажмите «Create API key» → выберите или создайте проект
+      - Скопируйте ключ (начинается с AIza)
+    check: {url: "https://generativelanguage.googleapis.com/v1beta/models", auth: query, param: key}
+
+  - id: openrouter
+    name: OpenRouter
+    env: OPENROUTER_API_KEY
+    priority: 1
+    gives: десятки бесплатных моделей (:free) — Qwen-Coder, DeepSeek, Nemotron, GLM
+    limits: 20 запросов/мин, 50 запросов/день (1000 после разового депозита $10)
+    needs: Google/GitHub, карта не нужна
+    signup: https://openrouter.ai
+    key_url: https://openrouter.ai/keys
+    steps:
+      - Войдите через Google или GitHub
+      - Нажмите «Create Key», лимит кредитов оставьте пустым
+      - Скопируйте ключ (начинается с sk-or-)
+    check: {url: "https://openrouter.ai/api/v1/key", auth: bearer}
+
+  - id: cerebras
+    name: Cerebras
+    env: CEREBRAS_API_KEY
+    priority: 1
+    gives: очень быстрый Qwen-3-235B и gpt-oss, без суточного потолка
+    limits: 5–30 запросов/мин, без лимита в день
+    needs: подтверждение телефона
+    signup: https://cloud.cerebras.ai
+    key_url: https://cloud.cerebras.ai/platform
+    steps:
+      - Зарегистрируйтесь и подтвердите телефон
+      - Слева «API Keys» → «Generate API key»
+      - Скопируйте ключ (начинается с csk-)
+    check: {url: "https://api.cerebras.ai/v1/models", auth: bearer}
+
+  - id: nvidia
+    name: NVIDIA NIM
+    env: NVIDIA_API_KEY
+    priority: 1
+    gives: Qwen3-Coder-480B (лучший бесплатный для кода), DeepSeek, Kimi, без суточного потолка
+    limits: 40 запросов/мин, без лимита в день
+    needs: только почта
+    signup: https://build.nvidia.com
+    key_url: https://build.nvidia.com/settings/api-keys
+    steps:
+      - Зарегистрируйтесь (NVIDIA Developer, бесплатно)
+      - «Generate API Key»
+      - Скопируйте ключ (начинается с nvapi-)
+    check: {url: "", auth: none, prefix: "nvapi-"}
+
+  - id: mistral
+    name: Mistral
+    env: MISTRAL_API_KEY
+    priority: 2
+    gives: Mistral Large, Codestral (отдельная квота для кода), эмбеддинги
+    limits: около 4 запросов/мин на чат + Codestral 30/мин; на бесплатном плане учится на запросах
+    needs: почта и SMS
+    signup: https://console.mistral.ai
+    key_url: https://console.mistral.ai/api-keys
+    steps:
+      - Зарегистрируйтесь, выберите бесплатный план «Experiment»
+      - Подтвердите телефон
+      - «Create new key» → скопируйте ключ
+    check: {url: "https://api.mistral.ai/v1/models", auth: bearer}
+
+  - id: zai
+    name: Z.ai (GLM)
+    env: ZAI_API_KEY
+    priority: 2
+    gives: GLM-4.5-Flash навсегда бесплатно
+    limits: только по числу одновременных запросов
+    needs: почта; из РФ/СНГ иногда проще open.bigmodel.cn
+    signup: https://z.ai
+    key_url: https://z.ai/manage-apikey/apikey-list
+    steps:
+      - Зарегистрируйтесь на z.ai
+      - «API Keys» → «Create a new API key»
+      - Скопируйте ключ
+    check: {url: "", auth: none}
+
+  - id: cloudflare
+    name: Cloudflare Workers AI
+    env: CLOUDFLARE_API_KEY
+    extra_env:
+      - env: CLOUDFLARE_ACCOUNT_ID
+        prompt: "Account ID (32 символа, справа на главной странице панели Cloudflare)"
+        secret: false
+    priority: 2
+    gives: модели Llama/Qwen, генерация картинок FLUX и SDXL, эмбеддинги
+    limits: 10 000 «нейронов» в сутки на весь аккаунт
+    needs: только почта
+    signup: https://dash.cloudflare.com/sign-up
+    key_url: https://dash.cloudflare.com/profile/api-tokens
+    steps:
+      - Зарегистрируйтесь
+      - «Create Token» → шаблон «Workers AI» → «Continue to summary» → «Create Token»
+      - Скопируйте токен; Account ID возьмите на главной странице панели (справа внизу)
+    check: {url: "https://api.cloudflare.com/client/v4/user/tokens/verify", auth: bearer}
+
+  - id: huggingface
+    name: Hugging Face
+    env: HF_TOKEN
+    priority: 2
+    gives: доступ к сотням открытых моделей через их роутер
+    limits: около $0.10 кредита в месяц
+    needs: только почта
+    signup: https://huggingface.co/join
+    key_url: https://huggingface.co/settings/tokens
+    steps:
+      - Зарегистрируйтесь
+      - «Create new token» → тип «Read» (или Fine-grained с правом Inference)
+      - Скопируйте токен (начинается с hf_)
+    check: {url: "https://huggingface.co/api/whoami-v2", auth: bearer}
+
+  - id: cohere
+    name: Cohere
+    env: COHERE_API_KEY
+    priority: 2
+    gives: Command-A, Aya (хорошо по-русски), поиск и rerank
+    limits: 20 запросов/мин, 1000 запросов/месяц, только некоммерческое использование
+    needs: Google/GitHub/почта
+    signup: https://dashboard.cohere.com/welcome/register
+    key_url: https://dashboard.cohere.com/api-keys
+    steps:
+      - Зарегистрируйтесь
+      - Trial key создаётся сам — скопируйте его на странице API Keys
+    check: {url: "https://api.cohere.com/v1/models", auth: bearer}
+
+  - id: sambanova
+    name: SambaNova
+    env: SAMBANOVA_API_KEY
+    priority: 2
+    gives: DeepSeek V3.x, Llama 4 — быстро
+    limits: стартовые кредиты; кончились — сами не восстановятся
+    needs: Google/почта
+    signup: https://cloud.sambanova.ai
+    key_url: https://cloud.sambanova.ai/apis
+    steps:
+      - Войдите
+      - «API Keys» → «Generate New API Key»
+      - Скопируйте ключ
+    check: {url: "", auth: none}
+
+  - id: deepseek
+    name: DeepSeek
+    env: DEEPSEEK_API_KEY
+    priority: 2
+    gives: DeepSeek V4 напрямую — сильный код
+    limits: стартовые кредиты при регистрации (если дают), дальше платно и дёшево
+    needs: почта или Google; иногда телефон
+    signup: https://platform.deepseek.com/sign_up
+    key_url: https://platform.deepseek.com/api_keys
+    steps:
+      - Зарегистрируйтесь
+      - «API keys» → «Create new API key»
+      - Скопируйте ключ (начинается с sk-)
+    check: {url: "https://api.deepseek.com/models", auth: bearer}
+
+  - id: poolside
+    name: Poolside
+    env: POOLSIDE_API_KEY
+    priority: 2
+    gives: кодовые модели Laguna
+    limits: бесплатно на ограниченное время, лимиты не опубликованы
+    needs: почта
+    signup: https://platform.poolside.ai
+    key_url: https://platform.poolside.ai
+    steps:
+      - Зарегистрируйтесь
+      - Раздел «API keys» → создайте ключ
+    check: {url: "https://inference.poolside.ai/v1/models", auth: bearer}
+
+  - id: ollama
+    name: Ollama Cloud
+    env: OLLAMA_API_KEY
+    priority: 2
+    gives: DeepSeek V4, Kimi K2, Qwen 3.5, GLM 5 в облаке Ollama
+    limits: бесплатный тариф с недельной квотой (цифры не опубликованы)
+    needs: почта или GitHub
+    signup: https://ollama.com/signup
+    key_url: https://ollama.com/settings/keys
+    steps:
+      - Зарегистрируйтесь
+      - «Add API Key» → скопируйте ключ
+    check: {url: "", auth: none}
+
+  - id: kilo
+    name: Kilo Code Gateway
+    env: KILO_API_KEY
+    priority: 2
+    gives: бесплатные модели шлюза Kilo (набор меняется)
+    limits: около 200 запросов/час
+    needs: Google/GitHub
+    signup: https://app.kilo.ai
+    key_url: https://app.kilo.ai/profile
+    steps:
+      - Войдите
+      - В профиле найдите «API Key» → скопируйте
+    check: {url: "", auth: none}
+
+  - id: zenmux
+    name: ZenMux
+    env: ZENMUX_API_KEY
+    priority: 2
+    gives: бесплатные DeepSeek V4 Flash и GLM-4.7 Flash (отдельная квота)
+    limits: только модели с суффиксом -free
+    needs: почта, без карты
+    signup: https://zenmux.ai
+    key_url: https://zenmux.ai/settings/keys
+    steps:
+      - Зарегистрируйтесь
+      - «Settings → Keys» → создайте ключ
+    check: {url: "https://zenmux.ai/api/v1/models", auth: bearer}
+
+  - id: vercel
+    name: Vercel AI Gateway
+    env: AI_GATEWAY_API_KEY
+    priority: 2
+    gives: запасная квота к бесплатным Ling и Laguna
+    limits: ежемесячный бесплатный кредит; не пополняйте баланс, иначе он пропадёт
+    needs: аккаунт Vercel (GitHub)
+    signup: https://vercel.com/signup
+    key_url: https://vercel.com/dashboard
+    steps:
+      - Войдите через GitHub
+      - Вкладка «AI Gateway» → «API Keys» → «Create key»
+    check: {url: "", auth: none}
+
+  - id: orcarouter
+    name: OrcaRouter
+    env: ORCAROUTER_API_KEY
+    priority: 2
+    gives: агрегатор 200+ моделей, бесплатные *-free
+    limits: free-модели работают после привязки GitHub-аккаунта «со стажем»
+    needs: почта + GitHub
+    signup: https://www.orcarouter.ai/login
+    key_url: https://www.orcarouter.ai/console/token
+    steps:
+      - Зарегистрируйтесь, привяжите GitHub в настройках workspace
+      - «Console → Token» → создайте ключ
+    check: {url: "", auth: none}
+
+  - id: llm7
+    name: LLM7
+    env: LLM7_API_KEY
+    priority: 2
+    gives: gpt-4o-mini, DeepSeek, Qwen-Coder; работает и без ключа (30/мин)
+    limits: 120 запросов/мин с токеном
+    needs: необязательно
+    signup: https://token.llm7.io
+    key_url: https://token.llm7.io
+    steps:
+      - Войдите и скопируйте токен
+    check: {url: "", auth: none}
+
+  - id: opencode
+    name: OpenCode Zen
+    env: OPENCODE_API_KEY
+    priority: 2
+    gives: бесплатные DeepSeek V4 Flash, Nemotron Ultra; работает и без ключа
+    limits: не опубликованы
+    needs: необязательно
+    signup: https://opencode.ai/zen
+    key_url: https://opencode.ai/zen
+    steps:
+      - Войдите и создайте ключ (можно пропустить — работает анонимно)
+    check: {url: "", auth: none}
+
+  - id: together
+    name: Together AI
+    env: TOGETHER_API_KEY
+    priority: 2
+    gives: бесплатная генерация картинок FLUX.1-schnell
+    limits: зависит от акций при регистрации
+    needs: почта
+    signup: https://api.together.ai/signin
+    key_url: https://api.together.ai/settings/api-keys
+    steps:
+      - Зарегистрируйтесь
+      - «Settings → API Keys» → скопируйте ключ
+    check: {url: "https://api.together.xyz/v1/models", auth: bearer}
+
+  - id: pollinations
+    name: Pollinations
+    env: POLLINATIONS_API_KEY
+    priority: 2
+    gives: текст и картинки; без ключа — базовый уровень
+    limits: с ключом выше
+    needs: необязательно, вход через GitHub
+    signup: https://enter.pollinations.ai
+    key_url: https://enter.pollinations.ai
+    steps:
+      - Войдите через GitHub и скопируйте токен
+    check: {url: "", auth: none}
+
+  - id: jina
+    name: Jina AI
+    env: JINA_API_KEY
+    priority: 2
+    gives: эмбеддинги и rerank (для поиска по документам)
+    limits: 10 млн бесплатных токенов на ключ
+    needs: ничего — ключ выдаётся прямо на сайте
+    signup: https://jina.ai/embeddings
+    key_url: https://jina.ai/api-dashboard/key-manager
+    steps:
+      - Откройте страницу — бесплатный ключ показан сразу, скопируйте его
+    check: {url: "", auth: none}
+
+  - id: voyage
+    name: Voyage AI
+    env: VOYAGE_API_KEY
+    priority: 3
+    gives: эмбеддинги для кода и rerank
+    limits: 200 млн бесплатных токенов
+    needs: почта
+    signup: https://dash.voyageai.com
+    key_url: https://dashboard.voyageai.com/organization/api-keys
+    steps:
+      - Зарегистрируйтесь
+      - «API Keys» → «Create new secret key»
+    check: {url: "", auth: none}
+
+  - id: gigachat
+    name: GigaChat (Сбер)
+    env: GIGACHAT_AUTH_KEY
+    priority: 3
+    gives: русскоязычный чат и картинки Kandinsky
+    limits: 1 млн токенов на 30 дней
+    needs: Сбер ID, телефон РФ
+    signup: https://developers.sber.ru/studio
+    key_url: https://developers.sber.ru/studio
+    steps:
+      - Войдите по Сбер ID
+      - Создайте проект GigaChat API (тариф Freemium, физлицо)
+      - «Настройки API» → «Получить ключ» → скопируйте Authorization key
+    check: {url: "", auth: none}
+
+  - id: freetheai
+    name: FreeTheAi
+    env: FREETHEAI_API_KEY
+    priority: 3
+    gives: тысячи моделей, включая GPT-5 и Kimi
+    limits: 10 запросов/мин; КАЖДЫЙ ДЕНЬ нужно вручную нажать /checkin в Discord
+    needs: Discord
+    signup: https://discord.gg/secrets
+    key_url: https://discord.gg/secrets
+    steps:
+      - Зайдите на Discord-сервер, в канале #api-keys выполните /signup
+      - Бот пришлёт ключ; каждый день выполняйте /checkin, иначе ключ не работает
+    check: {url: "", auth: none}
+
+  - id: dashscope
+    name: Alibaba Qwen (DashScope Intl)
+    env: DASHSCOPE_API_KEY
+    priority: 3
+    gives: флагманы Qwen 3.6 и Qwen3-Coder-480B, 1М контекст
+    limits: 1 млн токенов на модель на 90 дней
+    needs: аккаунт Alibaba Cloud International, телефон и карта, подтверждение личности
+    signup: https://accountclient.alibabacloud.com/intl
+    key_url: https://bailian.console.alibabacloud.com
+    steps:
+      - Зарегистрируйтесь в Alibaba Cloud International и пройдите верификацию
+      - Откройте Model Studio (регион Singapore) → «API Key» → создайте ключ
+    check: {url: "", auth: none}
+
+  - id: siliconflow
+    name: SiliconFlow
+    env: SILICONFLOW_API_KEY
+    priority: 3
+    gives: бесплатные Qwen3-8B, DeepSeek-R1-Distill, GLM-4.1V
+    limits: 1000 запросов/мин; нужна верификация личности
+    needs: китайский телефон или верификация
+    signup: https://cloud.siliconflow.cn
+    key_url: https://cloud.siliconflow.cn/account/ak
+    steps:
+      - Зарегистрируйтесь и пройдите верификацию
+      - «API 密钥» → создайте ключ
+    check: {url: "https://api.siliconflow.cn/v1/models", auth: bearer}
+
+  - id: modelscope
+    name: ModelScope
+    env: MODELSCOPE_API_KEY
+    priority: 3
+    gives: свежие Qwen 3.5
+    limits: 2000 запросов/день; нужна real-name верификация Alibaba
+    needs: аккаунт Alibaba Cloud с верификацией
+    signup: https://modelscope.cn
+    key_url: https://modelscope.cn/my/myaccesstoken
+    steps:
+      - Войдите и привяжите аккаунт Alibaba Cloud
+      - «Access Token» → создайте токен
+    check: {url: "", auth: none}
+
+# Работают без ключа и регистрации — ничего делать не нужно.
+keyless:
+  - OVHcloud AI Endpoints (открытые модели в EU, 2 запроса/мин)
+  - OpenCode Zen (бесплатные модели)
+  - LLM7 (30 запросов/мин)
+  - Pollinations (текст и картинки)
+  - AI Horde (картинки, общая очередь)
+  - Edge TTS (озвучка без лимита)
+  - LibreTranslate и MyMemory (перевод)
