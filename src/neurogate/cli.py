@@ -467,7 +467,7 @@ def _connect_opencode(base: str, token: str) -> None:
         "name": "neurogate (бесплатно)",
         "options": {"baseURL": f"{base}/v1", "apiKey": token},
         "models": {
-            mid: {"name": title, "tool_call": True,
+            mid: {"name": title, "tool_call": True, "release_date": time.strftime("%Y-%m-%d"),
                   "limit": {"context": 128000, "output": 16384}}
             for mid, title in _OPENCODE_MODELS.items()
         },
@@ -475,13 +475,17 @@ def _connect_opencode(base: str, token: str) -> None:
     # OpenCode 2.x (приложение) читает провайдеров в новом формате `providers` и в
     # нём приоритетнее; 1.x (CLI) понимает только `provider`. Пишем оба — так велит
     # migrate-v1: форматы могут сосуществовать.
+    released = time.strftime("%Y-%m-%d")
     cfg.setdefault("providers", {})["neurogate"] = {
         "name": "neurogate (бесплатно)",
         "package": "aisdk:@ai-sdk/openai-compatible",
         "settings": {"baseURL": f"{base}/v1", "apiKey": token},
         "models": {
             # type=chat: окно OpenCode 2.x показывает только такие; cost=0 → пометка «Бесплатно»
-            mid: {"name": title, "type": "chat", "family": "neurogate",
+            # Окно показывает только модели с датой выпуска не старше ~полугода (каждая
+            # — «новейшая» в своём family) — ставим дату подключения; connect её обновляет.
+            mid: {"name": title, "type": "chat", "family": f"neurogate-{mid}",
+                  "releaseDate": released,
                   "capabilities": {"tools": True, "input": ["text"], "output": ["text"]},
                   "cost": {"input": 0, "output": 0},
                   "limit": {"context": 128000, "output": 16384}}
