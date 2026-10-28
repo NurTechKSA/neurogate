@@ -2786,6 +2786,59 @@ providers:
     latency_s: 2.3
     ru: 0
 
+
+  # --- 2026-10-29 (форк): живые модели NVIDIA (проба с ключом). Снятые записи выше
+  # отсеивает neurogate.liveness по GET /v1/models.
+  - name: nvidia:nemotron-3-ultra-550b
+    kind: nvidia
+    model: nvidia/nemotron-3-ultra-550b-a55b
+    api_key_env: NVIDIA_API_KEY
+    rpm: 40
+    timeout: 120
+    quality: 0
+    latency_s: 1.4
+    ru: 0
+
+  - name: nvidia:minimax-m3.1-flash
+    kind: nvidia
+    model: minimaxai/minimax-m3.1-flash
+    api_key_env: NVIDIA_API_KEY
+    rpm: 40
+    timeout: 120
+    quality: 0
+    latency_s: 1.6
+    ru: 0
+
+  - name: nvidia:nemotron-3.5-lightning
+    kind: nvidia
+    model: nvidia/nemotron-3.5-lightning-30b-a3b
+    api_key_env: NVIDIA_API_KEY
+    rpm: 40
+    timeout: 120
+    quality: 0
+    latency_s: 3.5
+    ru: 0
+
+  - name: nvidia:glm-5.3-flash
+    kind: nvidia
+    model: z-ai/glm-5.3-flash
+    api_key_env: NVIDIA_API_KEY
+    rpm: 40
+    timeout: 120
+    quality: 0
+    latency_s: 33.7
+    ru: 0
+
+  - name: nvidia:deepseek-v4.1-flash
+    kind: nvidia
+    model: deepseek-ai/deepseek-v4.1-flash
+    api_key_env: NVIDIA_API_KEY
+    rpm: 40
+    timeout: 120
+    quality: 0
+    latency_s: 0
+    ru: 0
+
 # ==================================================================================
 # Цепочки. Порядок = приоритет фоллбэка.
 # ==================================================================================
@@ -2799,6 +2852,7 @@ chains:
   # доступен через прямой `model=deepseek:v4-flash` после пополнения.
   chat:
     # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    - nvidia:minimax-m3.1-flash
     - gemini:3.5-flash
     - openrouter:nemotron-3.5-super-vl-free
     - openrouter:dots-3-note-free
@@ -2871,6 +2925,8 @@ chains:
     - freetheai:minimax-m2.7             # 5.2s, RU 75, reasoning (MiniMax-M2.7)
     - freetheai:kimi-k2.6                # 7.2s, RU 75, reasoning (Kimi-K2.6)
     - freetheai:glm-5.1                  # 8.7s, RU 80, reasoning (GLM-5.1, leaderboard #3)
+    - nvidia:glm-5.3-flash
+    - nvidia:deepseek-v4.1-flash
     # --- 2026-10-28 (форк): новые сервисы, без бенча ---
     - inception:mercury-3
     - inception:mercury-2.5
@@ -3004,6 +3060,8 @@ chains:
     #  по tool_call_id — Claude Code через claude-code-router больше не падает 400).
     # deepseek:v4-pro убран 2026-05-12 — см. комментарий в chain `chat`
     # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    - nvidia:nemotron-3-ultra-550b
+    - nvidia:minimax-m3.1-flash
     - gemini:3.6-flash
     - openrouter:nemotron-3-ultra-free
     - gemini:3.5-flash
@@ -3078,6 +3136,8 @@ chains:
   # Топ-приоритет: code-specialized + agentic-friendly.
   code_fast:
     # --- 2026-10-28 (форк): живые на пробе с ключом, в голове цепочки ---
+    - nvidia:minimax-m3.1-flash
+    - nvidia:nemotron-3.5-lightning
     - gemini:3.5-flash-lite
     - openrouter:nemotron-3.5-lightning-free
     - openrouter:laguna-s-2.1-free

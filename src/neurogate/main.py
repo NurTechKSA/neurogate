@@ -33,7 +33,7 @@ from neurogate.config import (
     load_config,
     rewrite_chains_in_yaml,
 )
-from neurogate.liveness import prune_dead_free_models
+from neurogate.liveness import prune_dead_catalog_models, prune_dead_free_models
 from neurogate.metrics import registry
 from neurogate.router import LLMRouter
 from neurogate.stats import RateTracker
@@ -189,6 +189,7 @@ def create_app() -> FastAPI:
     cfg = load_config(config_path)
     if os.getenv("NEUROGATE_SKIP_LIVENESS", "").strip() not in ("1", "true"):
         prune_dead_free_models(cfg)
+        prune_dead_catalog_models(cfg)
 
     stats_path = Path(os.getenv("NEUROGATE_STATS_DB", "stats.db"))
     rate_tracker = RateTracker(stats_path)

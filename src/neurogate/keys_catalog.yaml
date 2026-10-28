@@ -14,7 +14,7 @@ services:
     priority: 1
     gives: чат и код, очень быстрые ответы, распознавание речи (Whisper)
     limits: 30 запросов/мин, 1–14 тыс. запросов/день на модель
-    needs: только почта или Google/GitHub
+    needs: почта или Google/GitHub; из некоторых стран и через VPN вход отклоняется — тогда пропустите
     signup: https://console.groq.com
     key_url: https://console.groq.com/keys
     steps:
