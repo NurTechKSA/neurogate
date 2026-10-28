@@ -405,11 +405,10 @@ def _connect_claude_code(base: str, token: str) -> None:
         print(f"\n⚠ Папки {_bin_dir()} нет в PATH. Добавьте её или запускайте полным путём.")
 
 
+# Одна модель: выбирать внутри neurogate ученику незачем — шлюз сам берёт свободную модель
+# и переключается при лимитах. Цепочка `code` — лучшие бесплатные модели для кода.
 _OPENCODE_MODELS = {
-    "code": "Код — бесплатные модели (neurogate)",
-    "code_fast": "Код быстро — бесплатные модели (neurogate)",
-    "auto": "Авто — neurogate сам выберет",
-    "chat": "Чат и тексты — бесплатные модели (neurogate)",
+    "code": "50 бесплатных моделей · сам переключается",
 }
 
 
@@ -464,7 +463,7 @@ def _connect_opencode(base: str, token: str) -> None:
             backup.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
     cfg.setdefault("provider", {})["neurogate"] = {
         "npm": "@ai-sdk/openai-compatible",
-        "name": "neurogate (бесплатно)",
+        "name": "neurogate",
         "options": {"baseURL": f"{base}/v1", "apiKey": token},
         "models": {
             mid: {"name": title, "tool_call": True, "release_date": time.strftime("%Y-%m-%d"),
@@ -477,7 +476,7 @@ def _connect_opencode(base: str, token: str) -> None:
     # migrate-v1: форматы могут сосуществовать.
     released = time.strftime("%Y-%m-%d")
     cfg.setdefault("providers", {})["neurogate"] = {
-        "name": "neurogate (бесплатно)",
+        "name": "neurogate",
         "package": "aisdk:@ai-sdk/openai-compatible",
         "settings": {"baseURL": f"{base}/v1", "apiKey": token},
         "models": {
@@ -485,7 +484,7 @@ def _connect_opencode(base: str, token: str) -> None:
             # Окно показывает только модели с датой выпуска не старше ~полугода (каждая
             # — «новейшая» в своём family) — ставим дату подключения; connect её обновляет.
             mid: {"name": title, "type": "chat", "family": f"neurogate-{mid}",
-                  "releaseDate": released,
+                  "releaseDate": released, "variants": {},
                   "capabilities": {"tools": True, "input": ["text"], "output": ["text"]},
                   "cost": {"input": 0, "output": 0},
                   "limit": {"context": 128000, "output": 16384}}
