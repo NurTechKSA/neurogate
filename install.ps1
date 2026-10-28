@@ -115,7 +115,7 @@ if ($userPath -notlike "*$Bin*") {
 
 Write-Host @"
 
-Готово. Всё бесплатно, подписки не нужны.
+ACCESS GRANTED. Всё бесплатно, подписки не нужны.
 
   * Приложение OpenCode (окно, как у Claude/ChatGPT):
      скачайте https://opencode.ai/download -> откройте -> выберите папку проекта -> пишите задачу.
@@ -126,4 +126,11 @@ Write-Host @"
   Проверить ключи:         neurogate keys
   VS Code (Cline и др.):   neurogate connect cline   (или continue, cursor)
   Перезапустить сервер:    neurogate restart   (setup делает это сам)
+  Что-то не так?           neurogate doctor
+  Инструкция:              https://neurogate.nurtech.dev
 "@
+$ocPaths = @("$env:LOCALAPPDATA\Programs\OpenCode\OpenCode.exe", "$env:ProgramFiles\OpenCode\OpenCode.exe")
+if (-not ($ocPaths | Where-Object { Test-Path $_ })) {
+    Write-Host "`nOpenCode ещё не установлен — открываю страницу скачивания…"
+    Start-Process "https://opencode.ai/download"
+}

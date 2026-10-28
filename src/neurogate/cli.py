@@ -213,6 +213,86 @@ def cmd_bot(args: argparse.Namespace) -> int:
     return run_bot(args.rest)
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """Проверка всей связки простым языком: что работает, что нет, какой командой чинить."""
+    base, token = _gateway()
+    problems = 0
+
+    def line(ok: bool | None, text: str, fix: str = "") -> None:
+        nonlocal problems
+        tag = {True: "[  OK  ]", False: "[ FAIL ]", None: "[ WARN ]"}[ok]
+        print(f"{tag} {text}")
+        if fix:
+            print(f"         → {fix}")
+        if ok is False:
+            problems += 1
+
+    print("neurogate doctor — сканирую систему…\n")
+    env = read_env_file(default_env_path())
+    services = load_catalog()["services"]
+    got = [s["name"] for s in services if env.get(s["env"]) or os.getenv(s["env"])]
+    if not got:
+        line(False, "Ключей нет — бесплатные модели neurogate не работают",
+             "neurogate setup  (или собери ключи в боте @nurtechneurogatebot)")
+    elif len(got) < 3:
+        line(None, f"Ключей: {len(got)} — мало, лимиты будут кончаться быстро",
+             "neurogate setup — добавь ещё 2–3 (Gemini, OpenRouter, Groq)")
+    else:
+        line(True, f"Ключей: {len(got)} ({', '.join(got[:5])}{'…' if len(got) > 5 else ''})")
+
+    alive = _gateway_alive(base)
+    line(alive, f"Шлюз отвечает на {base}" if alive else f"Шлюз не отвечает на {base}",
+         "" if alive else "neurogate restart  (или neurogate serve в отдельном окне)")
+
+    if alive and got:
+        try:
+            r = httpx.post(f"{base}/v1/chat/completions", timeout=120,
+                           headers={"Authorization": f"Bearer {token}"},
+                           json={"model": "code_fast", "max_tokens": 20,
+                                 "messages": [{"role": "user", "content": "Ответь одним словом: ок"}]})
+            data = r.json()
+            if r.status_code == 200:
+                line(True, f"Модель ответила: {data.get('model')}")
+            else:
+                line(False, "Модели не ответили: " + str(data.get("detail") or data.get("error"))[:160],
+                     "neurogate keys — проверь ключи; neurogate setup — добавь новые")
+        except (httpx.HTTPError, ValueError) as exc:
+            line(False, f"Запрос к модели упал ({type(exc).__name__})", "neurogate restart")
+
+    oc = Path.home() / ".config" / "opencode" / "opencode.json"
+    try:
+        cfg = json.loads(oc.read_text(encoding="utf-8")) if oc.exists() else {}
+    except ValueError:
+        cfg = None
+    if cfg is None:
+        line(None, f"Настройки OpenCode не читаются ({oc})", "neurogate connect opencode")
+    else:
+        url = ((cfg.get("providers") or {}).get("neurogate") or {}).get("settings", {}).get("baseURL")
+        if not url:
+            line(None, "OpenCode не подключён к neurogate (встроенные бесплатные модели OpenCode работают и так)",
+                 "neurogate connect opencode, затем перезапусти OpenCode")
+        elif url != f"{base}/v1":
+            line(False, f"OpenCode смотрит на {url}, а шлюз на {base}",
+                 "neurogate connect opencode, затем перезапусти OpenCode")
+        else:
+            line(True, "OpenCode подключён к neurogate")
+
+    free = _bin_dir() / ("claude-free.cmd" if platform.system() == "Windows" else "claude-free")
+    if free.exists():
+        ok = base in free.read_text(encoding="utf-8")
+        line(ok, "claude-free настроен" if ok else "claude-free смотрит на старый адрес шлюза",
+             "" if ok else "neurogate connect claude-code")
+    if str(_bin_dir()) not in os.environ.get("PATH", ""):
+        line(None, f"{_bin_dir()} нет в PATH текущего окна", "открой новое окно терминала")
+
+    print()
+    if problems:
+        print(f"Найдено проблем: {problems}. Выполни команды после «→» и запусти neurogate doctor снова.")
+    else:
+        print("ACCESS GRANTED. Всё работает — можно кодить.")
+    return 1 if problems else 0
+
+
 def cmd_restart(args: argparse.Namespace) -> int:
     if restart_service():
         return 0
@@ -276,6 +356,13 @@ def _gateway() -> tuple[str, str]:
     return f"http://{host}:{port}", token
 
 
+def _gateway_alive(base: str) -> bool:
+    try:
+        return httpx.get(f"{base}/health", timeout=5).status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
 def _bin_dir() -> Path:
     d = Path.home() / ".local" / "bin"
     d.mkdir(parents=True, exist_ok=True)
@@ -333,7 +420,8 @@ def _connect_opencode(base: str, token: str) -> None:
             _print_openai_settings("OpenCode", base, token, "provider «neurogate», npm @ai-sdk/openai-compatible")
             return
         backup = path.with_suffix(".json.bak")
-        backup.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+        if not backup.exists():  # храним исходник до первого подключения, не затираем
+            backup.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
     cfg.setdefault("provider", {})["neurogate"] = {
         "npm": "@ai-sdk/openai-compatible",
         "name": "neurogate (бесплатно)",
@@ -344,12 +432,26 @@ def _connect_opencode(base: str, token: str) -> None:
             for mid, title in _OPENCODE_MODELS.items()
         },
     }
+    # OpenCode 2.x (приложение) читает провайдеров в новом формате `providers` и в
+    # нём приоритетнее; 1.x (CLI) понимает только `provider`. Пишем оба — так велит
+    # migrate-v1: форматы могут сосуществовать.
+    cfg.setdefault("providers", {})["neurogate"] = {
+        "name": "neurogate (бесплатно)",
+        "package": "aisdk:@ai-sdk/openai-compatible",
+        "settings": {"baseURL": f"{base}/v1", "apiKey": token},
+        "models": {
+            mid: {"name": title,
+                  "capabilities": {"tools": True, "input": ["text"], "output": ["text"]},
+                  "limit": {"context": 128000, "output": 16384}}
+            for mid, title in _OPENCODE_MODELS.items()
+        },
+    }
     cfg["model"] = "neurogate/code"
     cfg["small_model"] = "neurogate/code_fast"
     path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"OpenCode настроен: {path}")
-    print("Модель по умолчанию — «neurogate/code» (бесплатно). Откройте приложение OpenCode,")
-    print("выберите папку проекта и пишите задачу в чат. Сменить модель — список моделей внизу окна.")
+    print("Модель по умолчанию — «neurogate/code» (бесплатно). Если OpenCode открыт — закройте его")
+    print("полностью (⌘Q / Alt+F4) и откройте снова, тогда модели neurogate появятся в списке.")
 
 
 def _print_openai_settings(tool: str, base: str, token: str, where: str) -> None:
@@ -419,6 +521,9 @@ def main(argv: list[str]) -> int:
     p = sub.add_parser("bot", help="запустить Telegram-бот выдачи ключей (для преподавателя)")
     p.add_argument("rest", nargs=argparse.REMAINDER)
     p.set_defaults(func=cmd_bot)
+
+    p = sub.add_parser("doctor", help="проверить всю систему и подсказать, что починить")
+    p.set_defaults(func=cmd_doctor)
 
     p = sub.add_parser("restart", help="перезапустить сервер (после новых ключей)")
     p.set_defaults(func=cmd_restart)

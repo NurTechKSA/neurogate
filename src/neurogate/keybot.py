@@ -21,12 +21,14 @@ import logging
 import os
 import sqlite3
 import time
+from importlib import resources
 from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
 from cryptography.fernet import Fernet
 from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import HTMLResponse
 
 from neurogate.cli import check_key, load_catalog
 from neurogate.keydrop import DEFAULT_DROP_URL, new_code, seal
@@ -185,7 +187,8 @@ class KeyBot:
         state = self.store.get(chat_id)
         have = len(state["keys"]) if state else 0
         text = (
-            "⚡ <b>neurogate — бесплатные нейросети для кода</b>\n\n"
+            "<code>&gt; neurogate --access free</code>\n"
+            "⚡ <b>ДОСТУП К ИИ: уровень 2 «Прокачка»</b>\n\n"
             "Соберём ваши бесплатные ключи от сервисов ИИ (Gemini, OpenRouter, Groq, NVIDIA и ещё "
             f"{len(self.services) - 4}). Потом одна команда — и у вас на компьютере ИИ пишет код "
             "<b>в приложении OpenCode</b> (окно, как у Claude и ChatGPT) или в Claude Code — "
@@ -195,7 +198,8 @@ class KeyBot:
             "2️⃣ Присылаете ключ сюда — я проверяю и удаляю сообщение\n"
             "3️⃣ Жмёте «Выдать команду» — вставляете её в терминал\n\n"
             "🎯 Минимум — 3 ключа, хорошо — 10–15. Чем больше, тем реже упрётесь в лимит.\n\n"
-            "🔒 Ключи хранятся зашифрованными и стираются с сервера, как только установщик их заберёт."
+            "🔒 Ключи хранятся зашифрованными и стираются с сервера, как только установщик их заберёт.\n\n"
+            "📖 Вся инструкция и уровень 1 (без ключей): https://neurogate.nurtech.dev"
         )
         buttons = [[{"text": "🚀 Начать", "callback_data": "go"}]]
         if have:
@@ -226,7 +230,7 @@ class KeyBot:
         names = ", ".join(s["name"] for s in self.services if keys.get(s["env"]))
         drop_env = "" if self.drop_url == DEFAULT_DROP_URL else f"NEUROGATE_DROP_URL={self.drop_url} "
         text = (
-            f"🎉 <b>Готово! Ключей: {sum(1 for s in self.services if keys.get(s['env']))}</b>\n"
+            f"🔓 <b>ACCESS GRANTED · ключей: {sum(1 for s in self.services if keys.get(s['env']))}</b>\n"
             f"<i>{html.escape(names)}</i>\n\n"
             "🍏 <b>Mac / Linux</b> — откройте «Терминал», вставьте и нажмите Enter:\n"
             f"<code>curl -fsSL {REPO_RAW}/install.sh | {drop_env}NEUROGATE_CODE={code} bash</code>\n\n"
@@ -239,7 +243,8 @@ class KeyBot:
             "⭐ Скачайте приложение <a href=\"https://opencode.ai/download\">OpenCode</a>, откройте "
             "папку проекта и пишите задачу в чат — модель «neurogate/code» уже выбрана.\n"
             "💻 Или в терминале: <code>claude-free</code> — Claude Code на бесплатных моделях.\n\n"
-            "Добавить ещё ключей — снова /start."
+            "🩺 Что-то не так? <code>neurogate doctor</code> — проверит всё и скажет, как починить.\n"
+            "📖 Инструкция: https://neurogate.nurtech.dev · ещё ключей — снова /start."
         )
         await self.tg.send(chat_id, text)
 
@@ -319,7 +324,14 @@ class KeyBot:
         self.store.put(chat_id, state)
         mark = "✅" if ok else "☑️"
         suffix = "" if ok else " <i>(у сервиса нет автопроверки — сохранил как есть)</i>"
-        await self._show(chat_id, state, f"{mark} <b>{html.escape(s['name'])}</b> подключён{suffix}")
+        note = f"{mark} <b>{html.escape(s['name'])}</b> подключён{suffix}"
+        got = sum(1 for x in self.services if state["keys"].get(x["env"]))
+        if got == 3:
+            note += ("\n\n🟢 <b>Минимум собран — уже можно работать.</b> Жми «Хватит — выдать команду» "
+                     "или добери ещё ключей: с 10–15 лимиты почти не заканчиваются.")
+        elif got == 10:
+            note += "\n\n🔥 <b>10 ключей — режим «без пауз».</b> Можно выдавать команду."
+        await self._show(chat_id, state, note)
 
     async def on_update(self, update: dict) -> None:
         try:
@@ -397,6 +409,12 @@ def create_bot_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {"ok": True}
+
+    students_page = resources.files("neurogate").joinpath("static/students.html").read_text(encoding="utf-8")
+
+    @app.get("/", response_class=HTMLResponse)
+    async def landing():
+        return HTMLResponse(students_page)
 
     @app.get("/p/{drop_id}")
     async def pickup(drop_id: str):

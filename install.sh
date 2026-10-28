@@ -14,6 +14,17 @@ REPO="${NEUROGATE_REPO:-https://github.com/RYAZHAPOVILNUR/neurogate.git}"
 DIR="${NEUROGATE_DIR:-$HOME/neurogate}"
 PORT="${NEUROGATE_PORT:-8765}"
 
+cat <<'BANNER'
+
+  ███╗   ██╗███████╗██╗   ██╗██████╗  ██████╗  ██████╗  █████╗ ████████╗███████╗
+  ████╗  ██║██╔════╝██║   ██║██╔══██╗██╔═══██╗██╔════╝ ██╔══██╗╚══██╔══╝██╔════╝
+  ██╔██╗ ██║█████╗  ██║   ██║██████╔╝██║   ██║██║  ███╗███████║   ██║   █████╗
+  ██║╚██╗██║██╔══╝  ██║   ██║██╔══██╗██║   ██║██║   ██║██╔══██║   ██║   ██╔══╝
+  ██║ ╚████║███████╗╚██████╔╝██║  ██║╚██████╔╝╚██████╔╝██║  ██║   ██║   ███████╗
+  ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
+  > access: free · 50 нейросетей · 0 ₽                     neurogate.nurtech.dev
+BANNER
+
 say() { printf '\n\033[1;36m▶ %s\033[0m\n' "$*"; }
 
 say "1/6 Менеджер Python-окружений uv"
@@ -159,7 +170,7 @@ fi
 
 cat <<EOF
 
-✅ Готово. Всё бесплатно, подписки не нужны.
+🔓 ACCESS GRANTED. Всё бесплатно, подписки не нужны.
 
   ⭐ Приложение OpenCode (окно, как у Claude/ChatGPT):
      скачайте https://opencode.ai/download → откройте → выберите папку проекта → пишите задачу.
@@ -170,7 +181,14 @@ cat <<EOF
   Проверить ключи:         neurogate keys
   VS Code (Cline и др.):   neurogate connect cline   (или continue, cursor)
   Перезапустить сервер:    neurogate restart   (setup делает это сам)
+  Что-то не так?           neurogate doctor
+  Инструкция:              https://neurogate.nurtech.dev
 EOF
+if [ "$(uname)" = "Darwin" ] && [ ! -d /Applications/OpenCode.app ]; then
+  echo
+  echo "OpenCode ещё не установлен — открываю страницу скачивания…"
+  open "https://opencode.ai/download" 2>/dev/null || true
+fi
 if [ -n "${NEW_PATH:-}" ]; then
   echo
   echo "⚠ Откройте НОВОЕ окно терминала — в этом команды neurogate и claude-free ещё не видны."
