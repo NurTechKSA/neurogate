@@ -30,7 +30,7 @@ from cryptography.fernet import Fernet
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from neurogate.cli import check_key, load_catalog
+from neurogate.cli import check_key, load_catalog, ordered_services
 from neurogate.keydrop import DEFAULT_DROP_URL, new_code, seal
 
 log = logging.getLogger("neurogate.keybot")
@@ -53,24 +53,30 @@ class Store:
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS drops (id TEXT PRIMARY KEY, blob TEXT NOT NULL, expires REAL NOT NULL)"
         )
+        try:  # миграция: флаг «добавить ещё ключи» после быстрого старта
+            self.db.execute("ALTER TABLE sessions ADD COLUMN more INTEGER NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # колонка уже есть
         self.db.commit()
         self.f = Fernet(storage_key.encode())
 
     def get(self, chat_id: int) -> dict | None:
         row = self.db.execute(
-            "SELECT idx, pending_extra, keys_enc FROM sessions WHERE chat_id=?", (chat_id,)
+            "SELECT idx, pending_extra, keys_enc, more FROM sessions WHERE chat_id=?", (chat_id,)
         ).fetchone()
         if not row:
             return None
-        return {"idx": row[0], "pending_extra": row[1], "keys": json.loads(self.f.decrypt(row[2].encode()))}
+        return {"idx": row[0], "pending_extra": row[1], "more": bool(row[3]),
+                "keys": json.loads(self.f.decrypt(row[2].encode()))}
 
     def put(self, chat_id: int, s: dict) -> None:
         enc = self.f.encrypt(json.dumps(s["keys"]).encode()).decode()
         self.db.execute(
-            "INSERT INTO sessions (chat_id, idx, pending_extra, keys_enc, updated) VALUES (?,?,?,?,?)"
+            "INSERT INTO sessions (chat_id, idx, pending_extra, keys_enc, updated, more)"
+            " VALUES (?,?,?,?,?,?)"
             " ON CONFLICT(chat_id) DO UPDATE SET idx=excluded.idx, pending_extra=excluded.pending_extra,"
-            " keys_enc=excluded.keys_enc, updated=excluded.updated",
-            (chat_id, s["idx"], s.get("pending_extra"), enc, time.time()),
+            " keys_enc=excluded.keys_enc, updated=excluded.updated, more=excluded.more",
+            (chat_id, s["idx"], s.get("pending_extra"), enc, time.time(), int(bool(s.get("more")))),
         )
         self.db.commit()
 
@@ -128,7 +134,8 @@ class KeyBot:
         self.store = store
         self.drop_url = drop_url
         catalog = load_catalog()
-        self.services = sorted(catalog["services"], key=lambda s: s["priority"])
+        self.services = ordered_services(catalog)
+        self.quick_n = len([i for i in catalog.get("quick", []) if any(s["id"] == i for s in self.services)])
         # Последняя карточка с кнопками в каждом чате — у неё снимаем кнопки, когда
         # приходит следующая (иначе в чате копятся одинаковые «Пропустить»)
         self.last_card: dict[int, int] = {}
@@ -141,12 +148,17 @@ class KeyBot:
         filled = min(10, round(got / 15 * 10))  # 15 ключей — «отлично», дальше полоса полная
         return f"{'▰' * filled}{'▱' * (10 - filled)}  ключей: <b>{got}</b>"
 
+    def _position(self, idx: int) -> str:
+        if idx < self.quick_n:
+            return f"{idx + 1} из {self.quick_n} · ⚡ быстрый старт"
+        extra = len(self.services) - self.quick_n
+        return f"доп. {idx - self.quick_n + 1} из {extra} · {_PRIORITY_BADGE.get(self.services[idx]['priority'], '')}"
+
     def _card(self, s: dict, idx: int, keys: dict, note: str = "") -> tuple[str, list[list[dict]]]:
         e = html.escape
         steps = "\n".join(f"{i}. {e(step)}" for i, step in enumerate(s.get("steps", []), 1))
         text = (
-            f"🔑 <b>{e(s['name'])}</b>   <i>{idx + 1} из {len(self.services)} · "
-            f"{_PRIORITY_BADGE.get(s['priority'], '')}</i>\n"
+            f"🔑 <b>{e(s['name'])}</b>   <i>{self._position(idx)}</i>\n"
             f"{self._progress(keys)}\n\n"
             f"<b>Даёт:</b> {e(s['gives'])}\n"
             f"<b>Лимит:</b> {e(s['limits'])}\n"
@@ -168,6 +180,16 @@ class KeyBot:
         idx = s_state["idx"]
         if idx >= len(self.services):
             await self.finish(chat_id)
+            return
+        if idx == self.quick_n and not s_state.get("more"):
+            got = sum(1 for s in self.services if s_state["keys"].get(s["env"]))
+            head = f"{note}\n\n" if note else ""
+            await self._send_card(chat_id, (
+                f"{head}⚡ <b>Быстрый старт пройден</b> · ключей: <b>{got}</b>\n\n"
+                "Этого хватит, чтобы работать. Если позже начнёшь упираться в лимиты — вернись "
+                f"и добавь ещё: осталось {len(self.services) - self.quick_n} сервисов."),
+                [[{"text": "✅ Выдать команду установки", "callback_data": "done"}],
+                 [{"text": "➕ Добавить ещё ключи", "callback_data": "more"}]])
             return
         text, buttons = self._card(self.services[idx], idx, s_state["keys"], note)
         await self._send_card(chat_id, text, buttons)
@@ -197,7 +219,8 @@ class KeyBot:
             "1️⃣ Я показываю сервис и ссылку — вы создаёте ключ (1–2 минуты)\n"
             "2️⃣ Присылаете ключ сюда — я проверяю и удаляю сообщение\n"
             "3️⃣ Жмёте «Выдать команду» — вставляете её в терминал\n\n"
-            "🎯 Минимум — 3 ключа, хорошо — 10–15. Чем больше, тем реже упрётесь в лимит.\n\n"
+            "⚡ <b>Быстрый старт — 3 ключа, ~5 минут</b> (Gemini, OpenRouter, NVIDIA — вход через Google). "
+            "Потом можно добавить ещё, если будет мало.\n\n"
             "🔒 Ключи хранятся зашифрованными и стираются с сервера, как только установщик их заберёт.\n\n"
             "📖 Вся инструкция и уровень 1 (без ключей): https://neurogate.nurtech.dev"
         )
@@ -265,6 +288,10 @@ class KeyBot:
         if data == "go":
             self.store.put(chat_id, state)
             await self._show(chat_id, state)
+        elif data == "more":
+            state["more"] = True
+            self.store.put(chat_id, state)
+            await self._show(chat_id, state)
         elif data == "skip":
             state["idx"] += 1
             state["pending_extra"] = None
@@ -326,10 +353,7 @@ class KeyBot:
         suffix = "" if ok else " <i>(у сервиса нет автопроверки — сохранил как есть)</i>"
         note = f"{mark} <b>{html.escape(s['name'])}</b> подключён{suffix}"
         got = sum(1 for x in self.services if state["keys"].get(x["env"]))
-        if got == 3:
-            note += ("\n\n🟢 <b>Минимум собран — уже можно работать.</b> Жми «Хватит — выдать команду» "
-                     "или добери ещё ключей: с 10–15 лимиты почти не заканчиваются.")
-        elif got == 10:
+        if got == 10:
             note += "\n\n🔥 <b>10 ключей — режим «без пауз».</b> Можно выдавать команду."
         await self._show(chat_id, state, note)
 

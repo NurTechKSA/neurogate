@@ -37,8 +37,18 @@ def load_catalog() -> dict:
     return yaml.safe_load(text)
 
 
+def ordered_services(catalog: dict) -> list[dict]:
+    """Сначала быстрый старт (catalog.quick, в его порядке), дальше остальные по priority."""
+    quick = catalog.get("quick", [])
+    by_id = {s["id"]: s for s in catalog["services"]}
+    head = [by_id[i] for i in quick if i in by_id]
+    rest = sorted((s for s in catalog["services"] if s["id"] not in quick),
+                  key=lambda s: s["priority"])
+    return head + rest
+
+
 def _services(catalog: dict, only: list[str] | None = None) -> list[dict]:
-    services = sorted(catalog["services"], key=lambda s: s["priority"])
+    services = ordered_services(catalog)
     if only:
         wanted = {o.lower() for o in only}
         services = [s for s in services if s["id"] in wanted or s["env"].lower() in wanted]
@@ -100,8 +110,13 @@ def cmd_setup(args: argparse.Namespace) -> int:
     _ensure_env_file(env_path)
     current = read_env_file(env_path)
     services = _services(catalog, args.services)
+    quick_ids = set(catalog.get("quick", []))
     if not args.all and not args.services:
         services = [s for s in services if not current.get(s["env"])]
+        if not args.more:
+            # Быстрый старт: сначала только три главных ключа; остальные — по желанию
+            first = [s for s in services if s["id"] in quick_ids]
+            services = first or services
     if not services:
         print("Все ключи из каталога уже вписаны. Проверить их: neurogate keys")
         return 0
@@ -112,6 +127,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
     print("Enter — открыть страницу, s — пропустить сервис, q — закончить.")
 
     saved = 0
+    quit_early = False
     last_priority = None
     for n, s in enumerate(services, 1):
         if s["priority"] != last_priority:
@@ -120,6 +136,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
         _print_service(s, n, len(services))
         answer = _ask("  [Enter / s / q] > ").lower()
         if answer == "q":
+            quit_early = True
             break
         if answer == "s":
             continue
@@ -145,6 +162,15 @@ def cmd_setup(args: argparse.Namespace) -> int:
             saved += 1
             print(f"  Сохранено: {s['env']}")
             break
+
+    rest = [s for s in _services(catalog) if not read_env_file(env_path).get(s["env"])
+            and s["id"] not in quick_ids]
+    if not quit_early and not args.all and not args.services and not args.more and rest and \
+            all(s["id"] in quick_ids for s in services):
+        print(f"\n⚡ Быстрый старт пройден. Ещё {len(rest)} сервисов — больше лимитов и моделей.")
+        if _ask("  Добавить ещё ключи? [y/N] > ").lower() in ("y", "д", "да", "yes"):
+            args.more = True
+            return cmd_setup(args)
 
     print(f"\nГотово, сохранено ключей: {saved}.")
     if saved and not restart_service():
@@ -690,6 +716,7 @@ def main(argv: list[str]) -> int:
     p = sub.add_parser("setup", help="мастер ключей: ссылки, инструкции, сохранение в .env")
     p.add_argument("services", nargs="*", help="id сервисов (groq gemini …); пусто — все без ключа")
     p.add_argument("--all", action="store_true", help="пройти и по уже вписанным")
+    p.add_argument("--more", action="store_true", help="сразу все сервисы, без быстрого старта")
     p.add_argument("--no-browser", action="store_true", help="не открывать страницы в браузере")
     p.set_defaults(func=cmd_setup)
 
