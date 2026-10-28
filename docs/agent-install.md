@@ -64,7 +64,7 @@ curl -s http://127.0.0.1:$(grep '^NEUROGATE_PORT=' ~/neurogate/.env | cut -d= -f
 | **Continue** | `neurogate connect continue` → добавь модель в `config.yaml` Continue. |
 | **OpenCode** | `neurogate connect opencode` → провайдер в `opencode.json`. |
 | **Cursor** | Cursor ходит к моделям со своих серверов и не видит localhost — нужен внешний адрес (VPS или туннель). Скажи об этом человеку. |
-| **Codex CLI** | Пока не поддерживается (нужен Responses API). Предложи Claude Code через `claude-free`. |
+| **Codex CLI** | `neurogate connect codex` создаёт профиль `free` (~/.codex/free.config.toml); человек запускает `codex-free` (или `codex --profile free`). Обычный `codex` не меняется. |
 | **ChatGPT / claude.ai в браузере** | Невозможно: модель там не меняется. Объясни это человеку. |
 
 Модели neurogate: `code` — основная для кода, `code_fast` — быстрые правки, `auto` — сам
