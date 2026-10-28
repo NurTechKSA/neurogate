@@ -16,6 +16,7 @@ services:
     volumes: [data:/data]
     networks: [webproxy]
     deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
+    logging: { driver: json-file, options: { max-size: 20m, max-file: "3" } }   # ротация журналов на общем сервере
 volumes:
   data:
 networks:
