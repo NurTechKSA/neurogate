@@ -12,6 +12,8 @@
 
 > 🎓 **Для учеников — установка одной командой, мастер ключей со ссылками и Claude Code на бесплатных моделях:** [docs/students.md](docs/students.md)
 >
+> 🌐 **Инструкция для учеников: https://neurogate.nurtech.dev** — уровень 1 без ключей (OpenCode), уровень 2 с neurogate, режим оркестратора для подписчиков.
+>
 > 🤖 **Проще всего:** Telegram-бот [@nurtechneurogatebot](https://t.me/nurtechneurogatebot) — вставляете ключи в чат, получаете одну команду установки.
 > Или скажите своему ИИ-агенту: «установи neurogate по инструкции https://github.com/RYAZHAPOVILNUR/neurogate/blob/main/docs/agent-install.md».
 >
