@@ -4,9 +4,9 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
 ![Status: alpha](https://img.shields.io/badge/status-alpha%20%2F%20early%20access-orange)
 
-**Бесплатный OpenAI-совместимый API на основе фоллбэка между ~20 free-провайдерами LLM.** Self-hosted, $0/мес, drop-in замена для любого OpenAI-клиента.
+**Бесплатный OpenAI-совместимый API на основе фоллбэка между ~50 бесплатными сервисами нейросетей.** Self-hosted, $0/мес, drop-in замена для любого OpenAI-клиента.
 
-> **EN:** Free-tier OpenAI-compatible LLM gateway with automatic fallback across 20+ providers (Groq, Gemini, Cerebras, SambaNova, OpenRouter, Cloudflare, GitHub Models, Mistral, NVIDIA, Z.AI, GigaChat, HuggingFace, Yandex, DeepSeek, Cohere, …). Self-hosted, $0/month, MIT license.
+> **EN:** Free-tier OpenAI-compatible LLM gateway with automatic fallback across ~50 providers (Groq, Gemini, Cerebras, SambaNova, OpenRouter, Cloudflare, GitHub Models, Mistral, NVIDIA, Z.AI, GigaChat, HuggingFace, Yandex, DeepSeek, Cohere, …). Self-hosted, $0/month, MIT license.
 
 > ⚠️ **Status: alpha / early access (v0.1).** Проект на активной разработке, API и конфиг могут меняться без особых церемоний до v1.0. Баги ожидаемы — открой [issue](../../issues/new?template=bug_report.md), посмотрим (шаблон отчёта — [docs/bug-report.md](docs/bug-report.md)). Звёздочка на репе и репорты помогают приоритетам.
 

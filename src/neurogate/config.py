@@ -171,6 +171,35 @@ PROVIDER_KIND_DEFAULTS = {
     # Лимиты: free tier session/weekly без публичных цифр. Pro $20/мес = 50× больше,
     # Max $50 = 250×. Получить ключ: ollama.com/settings/keys.
     "ollama": {"base_url": "https://ollama.com/v1"},
+    # --- 2026-10-28 (форк): новые бесплатные OpenAI-compat сервисы ---
+    # Inception Labs (Mercury, диффузионные LLM). 100M токенов разово на аккаунт, без карты.
+    "inception": {"base_url": "https://api.inceptionlabs.ai/v1"},
+    # Gonka Broker (децентрализованная GPU-сеть). ≥1M токенов в месяц бесплатно, сброс 1-го числа.
+    "gonka": {"base_url": "https://proxy.gonkabroker.com/v1"},
+    # Requesty — роутер, 200 запросов/день на $0-модели. Список free ротируется.
+    "requesty": {"base_url": "https://router.requesty.ai/v1"},
+    # Routeway — модели с суффиксом :free, 5 RPM / 200 RPD, сброс 00:00 UTC.
+    "routeway": {"base_url": "https://api.routeway.ai/v1"},
+    # UnoRouter — агрегатор :free-моделей, ~1 запрос/мин на модель (ротация спасает).
+    "unorouter": {"base_url": "https://api.unorouter.com/v1"},
+    # IteraCompute — до 30M токенов/мес на qwen3.8-27b. ⚠️ Промо до 2026-11-24.
+    "iteracompute": {"base_url": "https://api.iteracompute.com/v1"},
+    # Hetzner Inference (experiment) — бесплатно пока эксперимент, 10 RPM. Токен: experiments.hetzner.com.
+    "hetzner": {"base_url": "https://inference.hetzner.com/api/v1"},
+    # BazaarLink — free-модели: 10 RPM, 60 «единиц»/день, 2 параллельных.
+    "bazaarlink": {"base_url": "https://bazaarlink.ai/api/v1"},
+    # Nous Portal — бесплатный план, только :free-модели, лимиты не опубликованы.
+    "nous": {"base_url": "https://inference-api.nousresearch.com/v1"},
+    # Agnes AI — команда заявляет полностью бесплатный API, ~30 RPM.
+    "agnes": {"base_url": "https://apihub.agnes-ai.com/v1"},
+    # AI21 Jamba — $10 триал на 7 дней, без карты.
+    "ai21": {"base_url": "https://api.ai21.com/studio/v1"},
+    # Fireworks — ~$1 стартового кредита, без карты 10 RPM.
+    "fireworks": {"base_url": "https://api.fireworks.ai/inference/v1"},
+    # Hack Club AI — бесплатно для участников Hack Club (подростки), запросы логируются.
+    "hackclub": {"base_url": "https://ai.hackclub.com/proxy/v1"},
+    # Aion Labs — 20K токенов/день, ролевые модели: для кода слабо, только в чат.
+    "aion": {"base_url": "https://api.aionlabs.ai/v1"},
     "groq_whisper": {"base_url": "https://api.groq.com/openai/v1"},
     "pollinations_image": {"base_url": "https://image.pollinations.ai"},
     "gemini_image": {"base_url": None},
@@ -290,6 +319,20 @@ _ADHOC_DEFAULT_API_KEY_ENV: dict[str, str] = {
     "opencode": "OPENCODE_API_KEY",
     "codestral": "MISTRAL_API_KEY",
     "zenmux": "ZENMUX_API_KEY",
+    "inception": "INCEPTION_API_KEY",
+    "gonka": "GONKA_API_KEY",
+    "requesty": "REQUESTY_API_KEY",
+    "routeway": "ROUTEWAY_API_KEY",
+    "unorouter": "UNOROUTER_API_KEY",
+    "iteracompute": "ITERACOMPUTE_API_KEY",
+    "hetzner": "HETZNER_INFERENCE_API_KEY",
+    "bazaarlink": "BAZAARLINK_API_KEY",
+    "nous": "NOUS_API_KEY",
+    "agnes": "AGNES_API_KEY",
+    "ai21": "AI21_API_KEY",
+    "fireworks": "FIREWORKS_API_KEY",
+    "hackclub": "HACKCLUB_AI_API_KEY",
+    "aion": "AION_API_KEY",
     # ovhcloud — anonymous, no env key. Excluded from ad-hoc resolution because
     # ad-hoc requires an env var to be set (see build_adhoc_provider). Configure
     # via providers: yaml entry with kind: ovhcloud (no api_key_env).

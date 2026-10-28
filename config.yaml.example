@@ -2433,6 +2433,269 @@ providers:
     latency_s: 30.5
     quality: 65
 
+  # ==================================================================================
+  # 2026-10-28 (форк RYAZHAPOVILNUR): новые бесплатные сервисы. Лимиты и id моделей
+  # взяты из публичных доков/списков на эту дату, живой пробой с ключом НЕ проверены —
+  # quality/latency = 0 до бенча, в цепочках стоят в хвосте как доп. ёмкость.
+  # ==================================================================================
+
+  # --- Inception Labs (Mercury, диффузионные LLM). 100M токенов разово на аккаунт, без карты.
+  - name: inception:mercury-3
+    kind: inception
+    model: mercury-3
+    api_key_env: INCEPTION_API_KEY
+    rpm: 60
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: inception:mercury-2.5
+    kind: inception
+    model: mercury-2.5
+    api_key_env: INCEPTION_API_KEY
+    rpm: 60
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Gonka Broker (децентрализованная GPU-сеть). ≥1M токенов в месяц бесплатно, сброс 1-го числа.
+  - name: gonka:deepseek-v4-flash
+    kind: gonka
+    model: deepseek-ai/DeepSeek-V4-Flash-0731
+    api_key_env: GONKA_API_KEY
+    rpm: 20
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: gonka:glm-5.3-flash
+    kind: gonka
+    model: zai-org/GLM-5.3-Flash
+    api_key_env: GONKA_API_KEY
+    rpm: 20
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: gonka:minimax-m2.7
+    kind: gonka
+    model: MiniMaxAI/MiniMax-M2.7
+    api_key_env: GONKA_API_KEY
+    rpm: 20
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Requesty — роутер, 200 запросов/день на $0-модели. Список free ротируется.
+  - name: requesty:nemotron-3-ultra
+    kind: requesty
+    model: nvidia/nemotron-3-ultra-550b-a55b
+    api_key_env: REQUESTY_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: requesty:gemma-4-31b
+    kind: requesty
+    model: google/gemma-4-31b-it
+    api_key_env: REQUESTY_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Routeway — модели с суффиксом :free, 5 RPM / 200 RPD, сброс 00:00 UTC.
+  - name: routeway:deepseek-v4-flash-free
+    kind: routeway
+    model: deepseek-v4-flash:free
+    api_key_env: ROUTEWAY_API_KEY
+    rpm: 5
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: routeway:minimax-m2.7-free
+    kind: routeway
+    model: minimax-m2.7:free
+    api_key_env: ROUTEWAY_API_KEY
+    rpm: 5
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- UnoRouter — агрегатор :free-моделей, ~1 запрос/мин на модель (ротация спасает).
+  - name: unorouter:gpt-oss-120b-free
+    kind: unorouter
+    model: gpt-oss-120b:free
+    api_key_env: UNOROUTER_API_KEY
+    rpm: 1
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: unorouter:minimax-m3.1-flash-free
+    kind: unorouter
+    model: minimax-m3.1-flash:free
+    api_key_env: UNOROUTER_API_KEY
+    rpm: 1
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- IteraCompute — до 30M токенов/мес на qwen3.8-27b. ⚠️ Промо до 2026-11-24.
+  - name: iteracompute:qwen3.8-27b
+    kind: iteracompute
+    model: qwen/qwen3.8-27b
+    api_key_env: ITERACOMPUTE_API_KEY
+    rpm: 20
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Hetzner Inference (experiment) — бесплатно пока эксперимент, 10 RPM. Токен: experiments.hetzner.com.
+  - name: hetzner:qwen3.6-35b
+    kind: hetzner
+    model: Qwen/Qwen3.6-35B-A3B-FP8
+    api_key_env: HETZNER_INFERENCE_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: hetzner:qwen3.8-27b
+    kind: hetzner
+    model: Qwen3.8-27B
+    api_key_env: HETZNER_INFERENCE_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- BazaarLink — free-модели: 10 RPM, 60 «единиц»/день, 2 параллельных.
+  - name: bazaarlink:deepseek-v4-flash-free
+    kind: bazaarlink
+    model: deepseek/deepseek-v4-flash-0731free:free
+    api_key_env: BAZAARLINK_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: bazaarlink:qwen3.7-flash-free
+    kind: bazaarlink
+    model: qwen/qwen3.7-flash:free
+    api_key_env: BAZAARLINK_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Nous Portal — бесплатный план, только :free-модели, лимиты не опубликованы.
+  - name: nous:step-3.7-flash-free
+    kind: nous
+    model: stepfun/step-3.7-flash:free
+    api_key_env: NOUS_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+  - name: nous:beam-1.0-free
+    kind: nous
+    model: reflection/beam-1.0-501b-a23b:free
+    api_key_env: NOUS_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Agnes AI — команда заявляет полностью бесплатный API, ~30 RPM.
+  - name: agnes:agnes-2.0-flash
+    kind: agnes
+    model: agnes-2.0-flash
+    api_key_env: AGNES_API_KEY
+    rpm: 30
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- AI21 Jamba — $10 триал на 7 дней, без карты.
+  - name: ai21:jamba-large
+    kind: ai21
+    model: jamba-large
+    api_key_env: AI21_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Fireworks — ~$1 стартового кредита, без карты 10 RPM.
+  - name: fireworks:gpt-oss-120b
+    kind: fireworks
+    model: accounts/fireworks/models/gpt-oss-120b
+    api_key_env: FIREWORKS_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Hack Club AI — бесплатно для участников Hack Club (подростки), запросы логируются.
+  - name: hackclub:qwen3-32b
+    kind: hackclub
+    model: qwen/qwen3-32b
+    api_key_env: HACKCLUB_AI_API_KEY
+    rpm: 10
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
+
+  # --- Aion Labs — 20K токенов/день, ролевые модели: для кода слабо, только в чат.
+  - name: aion:aion-2.0
+    kind: aion
+    model: aion-labs/aion-2.0
+    api_key_env: AION_API_KEY
+    rpm: 15
+    timeout: 90
+    quality: 0
+    latency_s: 0
+    ru: 0
+
 # ==================================================================================
 # Цепочки. Порядок = приоритет фоллбэка.
 # ==================================================================================
@@ -2513,6 +2776,30 @@ chains:
     - freetheai:minimax-m2.7             # 5.2s, RU 75, reasoning (MiniMax-M2.7)
     - freetheai:kimi-k2.6                # 7.2s, RU 75, reasoning (Kimi-K2.6)
     - freetheai:glm-5.1                  # 8.7s, RU 80, reasoning (GLM-5.1, leaderboard #3)
+    # --- 2026-10-28 (форк): новые сервисы, без бенча ---
+    - inception:mercury-3
+    - inception:mercury-2.5
+    - gonka:deepseek-v4-flash
+    - gonka:glm-5.3-flash
+    - gonka:minimax-m2.7
+    - requesty:nemotron-3-ultra
+    - requesty:gemma-4-31b
+    - routeway:deepseek-v4-flash-free
+    - routeway:minimax-m2.7-free
+    - unorouter:gpt-oss-120b-free
+    - unorouter:minimax-m3.1-flash-free
+    - iteracompute:qwen3.8-27b
+    - hetzner:qwen3.6-35b
+    - hetzner:qwen3.8-27b
+    - bazaarlink:deepseek-v4-flash-free
+    - bazaarlink:qwen3.7-flash-free
+    - nous:step-3.7-flash-free
+    - nous:beam-1.0-free
+    - agnes:agnes-2.0-flash
+    - ai21:jamba-large
+    - fireworks:gpt-oss-120b
+    - hackclub:qwen3-32b
+    - aion:aion-2.0
 
   # --- chat_fast: chat minus всех с latency_s > 5s ---
   # Тот же порядок/приоритет что chat, но вычищены «долгодумы»:
@@ -2663,6 +2950,22 @@ chains:
     - openrouter:nemotron-3-nano-30b-free # AA 18 reasoning
     - cohere:command-r-plus              # AA 22 — Cohere R+ on code OK
     - cohere:command-r                   # AA 18
+    # --- 2026-10-28 (форк): новые сервисы, без бенча ---
+    - inception:mercury-3
+    - inception:mercury-2.5
+    - gonka:deepseek-v4-flash
+    - gonka:glm-5.3-flash
+    - gonka:minimax-m2.7
+    - requesty:nemotron-3-ultra
+    - routeway:deepseek-v4-flash-free
+    - routeway:minimax-m2.7-free
+    - unorouter:gpt-oss-120b-free
+    - iteracompute:qwen3.8-27b
+    - hetzner:qwen3.6-35b
+    - hetzner:qwen3.8-27b
+    - bazaarlink:deepseek-v4-flash-free
+    - nous:step-3.7-flash-free
+    - fireworks:gpt-oss-120b
     # --- FreeTheAi (⚠️ daily Discord /checkin required) ---
     - freetheai:kimi-k2.6                # 7.2s · Moonshot Kimi-K2 family, известна как coder
     - freetheai:minimax-m2.7             # 5.2s · MiniMax M2.7 reasoning, M2 family сильна в коде

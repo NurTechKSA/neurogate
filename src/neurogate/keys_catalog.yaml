@@ -56,10 +56,10 @@ services:
   - id: cerebras
     name: Cerebras
     env: CEREBRAS_API_KEY
-    priority: 1
+    priority: 2
     gives: очень быстрый Qwen-3-235B и gpt-oss, без суточного потолка
-    limits: 5–30 запросов/мин, без лимита в день
-    needs: подтверждение телефона
+    limits: старые аккаунты — 5–30 запросов/мин без лимита в день; новым с 08.2026 — $5 на 30 дней
+    needs: телефон; новым аккаунтам — карта
     signup: https://cloud.cerebras.ai
     key_url: https://cloud.cerebras.ai/platform
     steps:
@@ -164,9 +164,9 @@ services:
   - id: sambanova
     name: SambaNova
     env: SAMBANOVA_API_KEY
-    priority: 2
+    priority: 3
     gives: DeepSeek V3.x, Llama 4 — быстро
-    limits: стартовые кредиты; кончились — сами не восстановятся
+    limits: стартовые кредиты; кончились — сами не восстановятся (по free-llm.com с 10.2026 бесплатно больше не дают)
     needs: Google/почта
     signup: https://cloud.sambanova.ai
     key_url: https://cloud.sambanova.ai/apis
@@ -179,9 +179,9 @@ services:
   - id: deepseek
     name: DeepSeek
     env: DEEPSEEK_API_KEY
-    priority: 2
+    priority: 3
     gives: DeepSeek V4 напрямую — сильный код
-    limits: стартовые кредиты при регистрации (если дают), дальше платно и дёшево
+    limits: по free-llm.com бесплатных кредитов больше нет; дальше платно, но дёшево
     needs: почта или Google; иногда телефон
     signup: https://platform.deepseek.com/sign_up
     key_url: https://platform.deepseek.com/api_keys
@@ -236,23 +236,23 @@ services:
   - id: zenmux
     name: ZenMux
     env: ZENMUX_API_KEY
-    priority: 2
+    priority: 3
     gives: бесплатные DeepSeek V4 Flash и GLM-4.7 Flash (отдельная квота)
-    limits: только модели с суффиксом -free
+    limits: только модели -free; по данным 10.2026 на бесплатном плане API может быть закрыт
     needs: почта, без карты
     signup: https://zenmux.ai
     key_url: https://zenmux.ai/settings/keys
     steps:
       - Зарегистрируйтесь
       - «Settings → Keys» → создайте ключ
-    check: {url: "https://zenmux.ai/api/v1/models", auth: bearer}
+    check: {url: "", auth: none}  # /models открыт без ключа — проверка ничего не докажет
 
   - id: vercel
     name: Vercel AI Gateway
     env: AI_GATEWAY_API_KEY
     priority: 2
     gives: запасная квота к бесплатным Ling и Laguna
-    limits: ежемесячный бесплатный кредит; не пополняйте баланс, иначе он пропадёт
+    limits: $5 кредита каждые 30 дней; не пополняйте баланс, иначе бесплатный кредит пропадёт
     needs: аккаунт Vercel (GitHub)
     signup: https://vercel.com/signup
     key_url: https://vercel.com/dashboard
@@ -304,9 +304,9 @@ services:
   - id: together
     name: Together AI
     env: TOGETHER_API_KEY
-    priority: 2
+    priority: 3
     gives: бесплатная генерация картинок FLUX.1-schnell
-    limits: зависит от акций при регистрации
+    limits: по free-llm.com бесплатного больше нет; зависит от акций при регистрации
     needs: почта
     signup: https://api.together.ai/signin
     key_url: https://api.together.ai/settings/api-keys
@@ -424,6 +424,203 @@ services:
     steps:
       - Войдите и привяжите аккаунт Alibaba Cloud
       - «Access Token» → создайте токен
+    check: {url: "", auth: none}
+
+  # --- 2026-10-28: новые сервисы (поиск по free-llm.com, mnfst/awesome-free-llm-apis и докам) ---
+  - id: inception
+    name: Inception (Mercury)
+    env: INCEPTION_API_KEY
+    priority: 1
+    gives: очень быстрые модели Mercury для кода, контекст 1М токенов
+    limits: 100 млн токенов разово на аккаунт
+    needs: только почта, без карты
+    signup: https://platform.inceptionlabs.ai
+    key_url: https://platform.inceptionlabs.ai
+    steps:
+      - Зарегистрируйтесь
+      - Раздел «API Keys» → создайте ключ и скопируйте
+    check: {url: "", auth: none}  # /models открыт без ключа — проверка ничего не докажет
+
+  - id: gonka
+    name: Gonka Broker
+    env: GONKA_API_KEY
+    priority: 1
+    gives: DeepSeek V4 Flash, GLM-5.3 Flash, MiniMax M2.7
+    limits: не меньше 1 млн токенов в месяц, сброс 1-го числа
+    needs: почта; иногда просят телефон
+    signup: https://app.gonkabroker.com/signup
+    key_url: https://app.gonkabroker.com
+    steps:
+      - Зарегистрируйтесь
+      - В панели откройте раздел API keys → создайте ключ
+    check: {url: "", auth: none}  # /models открыт без ключа — проверка ничего не докажет
+
+  - id: requesty
+    name: Requesty
+    env: REQUESTY_API_KEY
+    priority: 2
+    gives: Nemotron 3 Ultra 550B, Gemma 4, Laguna — бесплатные модели роутера
+    limits: 200 запросов/день на бесплатные модели
+    needs: почта, без карты
+    signup: https://app.requesty.ai/sign-up
+    key_url: https://app.requesty.ai/api-keys
+    steps:
+      - Зарегистрируйтесь
+      - «API Keys» → «Create API key» → скопируйте
+    check: {url: "https://router.requesty.ai/v1/models", auth: bearer}
+
+  - id: routeway
+    name: Routeway
+    env: ROUTEWAY_API_KEY
+    priority: 2
+    gives: бесплатные DeepSeek V4 Flash и MiniMax M2.7
+    limits: 5 запросов/мин, 200 в день
+    needs: почта, без карты
+    signup: https://routeway.ai
+    key_url: https://routeway.ai
+    steps:
+      - Зарегистрируйтесь
+      - В панели создайте API-ключ
+    check: {url: "", auth: none}
+
+  - id: iteracompute
+    name: IteraCompute
+    env: ITERACOMPUTE_API_KEY
+    priority: 2
+    gives: Qwen 3.8 27B
+    limits: до 30 млн токенов в месяц; акция до 24.11.2026
+    needs: почта, без карты и телефона
+    signup: https://iteracompute.com
+    key_url: https://iteracompute.com
+    steps:
+      - Зарегистрируйтесь
+      - «API Keys» → создайте ключ с доступом к qwen/qwen3.8-27b
+    check: {url: "", auth: none}  # /models открыт без ключа — проверка ничего не докажет
+
+  - id: hetzner
+    name: Hetzner Inference (эксперимент)
+    env: HETZNER_INFERENCE_API_KEY
+    priority: 2
+    gives: Qwen 3.6 35B и Qwen 3.8 27B в Европе
+    limits: бесплатно, пока идёт эксперимент; около 10 запросов/мин
+    needs: аккаунт Hetzner (могут попросить способ оплаты)
+    signup: https://accounts.hetzner.com/signUp
+    key_url: https://experiments.hetzner.com
+    steps:
+      - Зарегистрируйтесь в Hetzner
+      - Откройте experiments.hetzner.com → вкладка «Inference» → создайте токен
+    check: {url: "", auth: none}
+
+  - id: nous
+    name: Nous Portal
+    env: NOUS_API_KEY
+    priority: 2
+    gives: бесплатные Step 3.7 Flash, Beam 501B, Laguna
+    limits: лимиты не опубликованы
+    needs: почта; иногда проверка карты на $0
+    signup: https://portal.nousresearch.com
+    key_url: https://portal.nousresearch.com
+    steps:
+      - Зарегистрируйтесь, выберите бесплатный план
+      - Создайте API-ключ в портале
+    check: {url: "", auth: none}
+
+  - id: bazaarlink
+    name: BazaarLink
+    env: BAZAARLINK_API_KEY
+    priority: 2
+    gives: бесплатные DeepSeek V4 Flash, Qwen 3.7 Flash, Nemotron
+    limits: 10 запросов/мин, 60 «единиц» в день
+    needs: почта, без карты
+    signup: https://bazaarlink.ai
+    key_url: https://bazaarlink.ai/keys
+    steps:
+      - Зарегистрируйтесь
+      - «Keys» → создайте ключ
+    check: {url: "", auth: none}
+
+  - id: unorouter
+    name: UnoRouter
+    env: UNOROUTER_API_KEY
+    priority: 2
+    gives: 100+ бесплатных моделей с суффиксом :free
+    limits: около 1 запроса/мин на модель
+    needs: почта, без карты
+    signup: https://unorouter.com
+    key_url: https://unorouter.com/en/token
+    steps:
+      - Зарегистрируйтесь
+      - «Token» → создайте ключ
+    check: {url: "", auth: none}
+
+  - id: agnes
+    name: Agnes AI
+    env: AGNES_API_KEY
+    priority: 2
+    gives: модели Agnes Flash для чата
+    limits: около 30 запросов/мин; команда заявляет, что API бесплатный
+    needs: почта
+    signup: https://platform.agnes-ai.com
+    key_url: https://platform.agnes-ai.com/settings/apiKeys
+    steps:
+      - Зарегистрируйтесь
+      - «Settings → API Keys» → создайте ключ
+    check: {url: "", auth: none}
+
+  - id: fireworks
+    name: Fireworks AI
+    env: FIREWORKS_API_KEY
+    priority: 3
+    gives: gpt-oss-120b и другие открытые модели
+    limits: около $1 стартового кредита, 10 запросов/мин без карты
+    needs: почта
+    signup: https://app.fireworks.ai/signup
+    key_url: https://app.fireworks.ai/settings/users/api-keys
+    steps:
+      - Зарегистрируйтесь
+      - «API Keys» → «Create API Key»
+    check: {url: "https://api.fireworks.ai/inference/v1/models", auth: bearer}
+
+  - id: ai21
+    name: AI21 (Jamba)
+    env: AI21_API_KEY
+    priority: 3
+    gives: Jamba Large, длинный контекст
+    limits: $10 на 7 дней
+    needs: почта, без карты
+    signup: https://studio.ai21.com
+    key_url: https://studio.ai21.com/account/api-key
+    steps:
+      - Зарегистрируйтесь
+      - «Account → API Key» → скопируйте
+    check: {url: "", auth: none}
+
+  - id: hackclub
+    name: Hack Club AI
+    env: HACKCLUB_AI_API_KEY
+    priority: 3
+    gives: бесплатный доступ к моделям для участников Hack Club
+    limits: только для участников Hack Club (подростки до 18), запросы логируются
+    needs: членство в Hack Club
+    signup: https://ai.hackclub.com
+    key_url: https://ai.hackclub.com
+    steps:
+      - Войдите через «Sign in with Hack Club»
+      - В панели создайте API-ключ
+    check: {url: "", auth: none}
+
+  - id: aion
+    name: Aion Labs
+    env: AION_API_KEY
+    priority: 3
+    gives: модели для текстов и ролевых диалогов (для кода слабо)
+    limits: 20 тыс. токенов/день, 15 запросов/мин
+    needs: почта, без карты
+    signup: https://www.aionlabs.ai/accounts/signup/
+    key_url: https://www.aionlabs.ai/app/api-keys/
+    steps:
+      - Зарегистрируйтесь
+      - «API Keys» → создайте ключ
     check: {url: "", auth: none}
 
 # Работают без ключа и регистрации — ничего делать не нужно.
