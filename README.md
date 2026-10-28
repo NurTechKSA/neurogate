@@ -12,6 +12,9 @@
 
 > 🎓 **Для учеников — установка одной командой, мастер ключей со ссылками и Claude Code на бесплатных моделях:** [docs/students.md](docs/students.md)
 >
+> 🤖 **Проще всего:** Telegram-бот [@nurtechneurogatebot](https://t.me/nurtechneurogatebot) — вставляете ключи в чат, получаете одну команду установки.
+> Или скажите своему ИИ-агенту: «установи neurogate по инструкции https://github.com/RYAZHAPOVILNUR/neurogate/blob/main/docs/agent-install.md».
+>
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.sh | bash
 > ```
