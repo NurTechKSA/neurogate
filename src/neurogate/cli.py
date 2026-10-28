@@ -304,6 +304,16 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                  "neurogate connect opencode, затем перезапусти OpenCode")
         else:
             line(True, "OpenCode подключён к neurogate")
+            # Окно OpenCode прячет модели старше ~182 дней — предупреждаем заранее
+            rel = (((cfg.get("providers") or {}).get("neurogate") or {}).get("models") or {}) \
+                .get("code", {}).get("releaseDate")
+            try:
+                age = (time.time() - time.mktime(time.strptime(rel, "%Y-%m-%d"))) / 86400 if rel else None
+            except ValueError:
+                age = None
+            if age is not None and age > 150:
+                line(None, f"Модель neurogate в OpenCode «выпущена» {int(age)} дн. назад — после 182 OpenCode "
+                     "её спрячет", "neurogate connect opencode (обновит дату)")
 
     free = _bin_dir() / ("claude-free.cmd" if platform.system() == "Windows" else "claude-free")
     if free.exists():
@@ -514,8 +524,11 @@ def _connect_opencode(base: str, token: str) -> None:
             # Окно показывает только модели с датой выпуска не старше ~полугода (каждая
             # — «новейшая» в своём family) — ставим дату подключения; connect её обновляет.
             mid: {"name": title, "type": "chat", "family": f"neurogate-{mid}",
-                  "releaseDate": released, "variants": {},
-                  "capabilities": {"tools": True, "input": ["text"], "output": ["text"]},
+                  # reasoning.supported=false — без кнопок Low/Medium/High: выбор модели и её
+                  # «силы мысли» делает сам neurogate
+                  "releaseDate": released,
+                  "capabilities": {"tools": True, "input": ["text"], "output": ["text"],
+                                   "reasoning": {"supported": False}},
                   "cost": {"input": 0, "output": 0},
                   "limit": {"context": 128000, "output": 16384}}
             for mid, title in _OPENCODE_MODELS.items()
