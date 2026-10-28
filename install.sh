@@ -2,6 +2,8 @@
 # Установка neurogate одной командой (macOS / Linux):
 #   curl -fsSL https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.sh | bash
 #
+# NEUROGATE_NO_AUTOSTART=1 — не ставить автозапуск (сервер, тесты, «запущу сам»).
+#
 # Что делает: ставит uv, качает neurogate в ~/neurogate, ставит зависимости,
 # запускает мастер ключей, включает автозапуск сервера и подключает Claude Code.
 # Повторный запуск безопасен — обновит код и ничего не сотрёт.
@@ -19,6 +21,9 @@ if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
 UV="$(command -v uv)"
+# Свой Python 3.12 от uv: системный бывает сломан или собран под другую архитектуру
+# (Homebrew под Rosetta), и тогда пакеты начинают компилироваться из исходников.
+export UV_PYTHON_PREFERENCE=only-managed UV_PYTHON=3.12
 
 say "2/6 Код neurogate → $DIR"
 if [ -d "$DIR/.git" ]; then
@@ -38,10 +43,16 @@ say "3/6 Зависимости"
 chmod 600 .env
 
 say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
-"$UV" run neurogate setup < /dev/tty || true
+if (: < /dev/tty) 2>/dev/null; then
+  "$UV" run neurogate setup < /dev/tty || true
+else
+  echo "Нет интерактивного терминала — добавьте ключи потом: neurogate setup"
+fi
 
 say "5/6 Автозапуск сервера"
-if [ "$(uname)" = "Darwin" ]; then
+if [ -n "${NEUROGATE_NO_AUTOSTART:-}" ]; then
+  echo "Автозапуск пропущен (NEUROGATE_NO_AUTOSTART). Запуск вручную: neurogate serve"
+elif [ "$(uname)" = "Darwin" ]; then
   PLIST="$HOME/Library/LaunchAgents/dev.neurogate.plist"
   mkdir -p "$(dirname "$PLIST")"
   cat > "$PLIST" <<EOF
@@ -87,14 +98,16 @@ else
   echo "Автозапуск не настроен. Запускайте вручную: cd $DIR && uv run neurogate"
 fi
 
-for _ in $(seq 1 40); do
-  curl -fs "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break
-  sleep 1
-done
-if curl -fs "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
-  echo "Сервер работает: http://127.0.0.1:$PORT/dashboard"
-else
-  echo "Сервер пока не ответил. Лог: $DIR/neurogate.log"
+if [ -z "${NEUROGATE_NO_AUTOSTART:-}" ]; then
+  for _ in $(seq 1 40); do
+    curl -fs "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break
+    sleep 1
+  done
+  if curl -fs "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
+    echo "Сервер работает: http://127.0.0.1:$PORT/dashboard"
+  else
+    echo "Сервер пока не ответил. Лог: $DIR/neurogate.log"
+  fi
 fi
 
 say "6/6 Подключение инструментов"
@@ -118,6 +131,5 @@ cat <<EOF
   Добавить ещё ключи:      neurogate setup
   Проверить ключи:         neurogate keys
   Cursor/Cline/OpenCode:   neurogate connect cline   (или cursor, opencode, codex, continue)
-
-  Перезапустить сервер:     neurogate restart   (setup делает это сам)
+  Перезапустить сервер:    neurogate restart   (setup делает это сам)
 EOF

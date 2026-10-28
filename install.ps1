@@ -22,6 +22,9 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     powershell -ExecutionPolicy ByPass -NoProfile -Command "irm https://astral.sh/uv/install.ps1 | iex"
 }
 $Uv = (Get-Command uv).Source
+# Свой Python 3.12 от uv — системный может быть любой версии или из Microsoft Store.
+$env:UV_PYTHON_PREFERENCE = "only-managed"
+$env:UV_PYTHON = "3.12"
 
 Say "2/6 Код neurogate -> $Dir"
 if (Test-Path (Join-Path $Dir ".git")) {
