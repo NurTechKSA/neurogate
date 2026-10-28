@@ -441,6 +441,8 @@ def _opencode_auth(token: str) -> bool | None:
         os.close(slave)
         os.close(master)
     listed = subprocess.run([cli, "auth", "list"], capture_output=True, text=True, timeout=60, check=False)
+    # Фоновый сервис OpenCode переживает перезапуск окна и держит старый конфиг — перечитываем
+    subprocess.run([cli, "reload"], capture_output=True, timeout=60, check=False)
     return "neurogate" in listed.stdout
 
 
@@ -494,8 +496,8 @@ def _connect_opencode(base: str, token: str) -> None:
         print(f"  моделей → «+» → «neurogate (бесплатно)» → вставьте ключ {token}")
     elif authed:
         print("Провайдер «neurogate (бесплатно)» подключён в OpenCode.")
-    print("Модель по умолчанию — «neurogate/code» (бесплатно). Если OpenCode открыт — закройте его")
-    print("полностью (⌘Q / Alt+F4) и откройте снова, тогда модели neurogate появятся в списке.")
+    print("Модель по умолчанию — «neurogate/code» (бесплатно). В OpenCode откройте список моделей —")
+    print("там группа «neurogate (бесплатно)». Не видно — закройте OpenCode (⌘Q / Alt+F4) и откройте.")
 
 
 def _print_openai_settings(tool: str, base: str, token: str, where: str) -> None:
