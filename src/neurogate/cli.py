@@ -480,8 +480,10 @@ def _connect_opencode(base: str, token: str) -> None:
         "package": "aisdk:@ai-sdk/openai-compatible",
         "settings": {"baseURL": f"{base}/v1", "apiKey": token},
         "models": {
-            mid: {"name": title,
+            # type=chat: окно OpenCode 2.x показывает только такие; cost=0 → пометка «Бесплатно»
+            mid: {"name": title, "type": "chat", "family": "neurogate",
                   "capabilities": {"tools": True, "input": ["text"], "output": ["text"]},
+                  "cost": {"input": 0, "output": 0},
                   "limit": {"context": 128000, "output": 16384}}
             for mid, title in _OPENCODE_MODELS.items()
         },
