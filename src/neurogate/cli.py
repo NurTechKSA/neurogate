@@ -11,6 +11,7 @@ import getpass
 import json
 import os
 import platform
+import re
 import shutil
 import stat
 import subprocess
@@ -548,6 +549,46 @@ def _connect_opencode(base: str, token: str) -> None:
     print("там группа «neurogate (бесплатно)». Не видно — закройте OpenCode (⌘Q / Alt+F4) и откройте.")
 
 
+CODEX_MARK = "# neurogate: бесплатный профиль"
+
+
+def _connect_codex(base: str, token: str) -> None:
+    """Профиль `free` для Codex: отдельный файл ~/.codex/free.config.toml (profile v2 —
+    накладывается поверх config.toml). Основной конфиг и модель Codex не трогаем."""
+    home = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
+    home.mkdir(parents=True, exist_ok=True)
+    base_cfg = home / "config.toml"
+    if base_cfg.exists() and CODEX_MARK in base_cfg.read_text(encoding="utf-8"):
+        # ранняя версия писала legacy [profiles.free] в config.toml — Codex с ним падает
+        text = base_cfg.read_text(encoding="utf-8")
+        text = re.sub(r"\n?" + re.escape(CODEX_MARK) + r"\n.*?model_context_window = \d+\n", "\n",
+                      text, flags=re.S)
+        base_cfg.write_text(text.rstrip("\n") + "\n", encoding="utf-8")
+    path = home / "free.config.toml"
+    path.write_text(
+        f"{CODEX_MARK} — создан `neurogate connect codex`, запуск: codex-free\n"
+        'model_provider = "neurogate"\n'
+        'model = "code"\n'
+        "model_context_window = 128000\n"
+        "\n[model_providers.neurogate]\n"
+        'name = "neurogate (бесплатно)"\n'
+        f'base_url = "{base}/v1"\n'
+        'wire_api = "responses"\n'
+        f'experimental_bearer_token = "{token}"\n',
+        encoding="utf-8",
+    )
+    shim_name = "codex-free.cmd" if platform.system() == "Windows" else "codex-free"
+    shim = _bin_dir() / shim_name
+    if platform.system() == "Windows":
+        shim.write_text("@echo off\r\ncodex --profile free %*\r\n", encoding="utf-8")
+    else:
+        shim.write_text('#!/bin/sh\nexec codex --profile free "$@"\n', encoding="utf-8")
+        shim.chmod(shim.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    print(f"Codex настроен: профиль «free» в {path}")
+    print("Запуск Codex на бесплатных моделях:  codex-free   (или codex --profile free)")
+    print("Обычный `codex` остаётся как был.")
+
+
 def _print_openai_settings(tool: str, base: str, token: str, where: str) -> None:
     print(f"{tool}: {where}")
     print(f"  Base URL / API Base:  {base}/v1")
@@ -591,10 +632,7 @@ def cmd_connect(args: argparse.Namespace) -> int:
     elif tool == "opencode":
         _connect_opencode(base, token)
     elif tool == "codex":
-        print("Codex CLI пока не поддерживается: он работает только по протоколу Responses API")
-        print("(/v1/responses), а neurogate отдаёт /v1/chat/completions и /v1/messages.")
-        print("Используйте claude-free (Claude Code) или Cline / OpenCode / Continue.")
-        return 1
+        _connect_codex(base, token)
     else:  # pragma: no cover — argparse ограничивает choices
         return 2
     return 0

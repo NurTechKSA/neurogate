@@ -33,6 +33,7 @@ from neurogate.config import (
     load_config,
     rewrite_chains_in_yaml,
 )
+from neurogate import responses_compat as rc
 from neurogate.liveness import prune_dead_catalog_models, prune_dead_free_models
 from neurogate.metrics import registry
 from neurogate.router import LLMRouter
@@ -2423,6 +2424,61 @@ def create_app() -> FastAPI:
             "provider": used_name,
             "chain": used_chain,
         }
+
+    @app.post("/v1/responses")
+    async def responses(request: Request, authorization: str | None = Header(default=None)):
+        """OpenAI Responses API для Codex CLI: items → chat/completions через цепочку
+        (с фоллбэком) → output items. Подробности перевода — responses_compat."""
+        _authorize(authorization)
+        try:
+            body = await request.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"invalid JSON body: {exc}") from exc
+        model = body.get("model")
+        chain_name = _pick_chain(model)
+        _require_chat_keys(model, chain_name)
+        messages = rc.convert_input(body)
+        tools, custom = rc.convert_tools(body.get("tools"))
+        resp_id = f"resp_{uuid.uuid4().hex[:24]}"
+        started = time.monotonic()
+        try:
+            result, used_name, used_chain = await request.app.state.router.chat(
+                messages=messages,
+                temperature=body.get("temperature"),
+                max_tokens=body.get("max_output_tokens"),
+                tools=tools,
+                tool_choice=rc.convert_tool_choice(body.get("tool_choice")) if tools else None,
+                chain_name=chain_name,
+                exclude=_parse_exclude(request),
+            )
+        except Exception as exc:
+            log.exception("all providers failed on /v1/responses (chain=%s)", chain_name)
+            _log_call(endpoint="responses", outcome="error", client_model=model,
+                      chain_requested=chain_name, started=started, error=exc)
+            err = {"code": "upstream_exhausted",
+                   "message": f"all providers failed on chain {chain_name}: {exc!r}"}
+            if body.get("stream"):
+                failed = {**rc.response_object(resp_id, model or chain_name, [], {}, "failed"),
+                          "error": err}
+                return StreamingResponse(
+                    iter([rc.to_sse([{"type": "response.failed", "sequence_number": 0,
+                                      "response": failed}])]),
+                    media_type="text/event-stream")
+            return JSONResponse(status_code=502, content={"error": err})
+        _log_call(endpoint="responses", outcome="success", client_model=model,
+                  chain_requested=chain_name, chain_resolved=used_chain, provider=used_name,
+                  started=started, result=result, stream=bool(body.get("stream")))
+        output = rc.build_output(result.text or "", result.tool_calls, custom)
+        resp = rc.response_object(resp_id, model or chain_name, output,
+                                  {"input": result.prompt_tokens or 0,
+                                   "output": result.completion_tokens or 0})
+        if body.get("stream"):
+            return StreamingResponse(
+                iter([rc.to_sse(rc.stream_events(resp))]),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+        return resp
 
     @app.post("/v1/messages")
     async def messages(

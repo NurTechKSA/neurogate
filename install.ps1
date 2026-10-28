@@ -104,6 +104,7 @@ cd /d "$Dir"
 "@ | Set-Content -Encoding ASCII (Join-Path $Bin "neurogate.cmd")
 & $Uv run neurogate connect opencode
 & $Uv run neurogate connect claude-code
+& $Uv run neurogate connect codex
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
     Write-Host "Claude Code не найден. Поставить: irm https://claude.ai/install.ps1 | iex"
 }
@@ -123,6 +124,7 @@ ACCESS GRANTED. Всё бесплатно, подписки не нужны.
      Модель «neurogate/code» уже выбрана.
   Панель и тестовый чат:   http://127.0.0.1:$Port/dashboard
   Claude Code в терминале: claude-free
+  Codex бесплатно:         codex-free
   Добавить ещё ключи:      neurogate setup
   Проверить ключи:         neurogate keys
   VS Code (Cline и др.):   neurogate connect cline   (или continue, cursor)

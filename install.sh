@@ -148,6 +148,7 @@ fi
 say "6/6 Подключение программ"
 "$UV" run neurogate connect opencode
 "$UV" run neurogate connect claude-code
+"$UV" run neurogate connect codex
 if ! command -v claude >/dev/null 2>&1; then
   echo "Claude Code не найден. Поставить: curl -fsSL https://claude.ai/install.sh | bash"
 fi
@@ -178,6 +179,7 @@ cat <<EOF
      скачайте https://opencode.ai/download → откройте → выберите папку проекта → пишите задачу.
      Модель «neurogate/code» уже выбрана.
   Claude Code в терминале: claude-free
+  Codex бесплатно:         codex-free
   Панель и тестовый чат:   http://127.0.0.1:$PORT/dashboard
   Добавить ещё ключи:      neurogate setup
   Проверить ключи:         neurogate keys
