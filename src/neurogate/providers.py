@@ -29,6 +29,7 @@ log = logging.getLogger(__name__)
 # код но не stats.db — следующий echo от клиента всё равно найдёт подпись).
 _GEMINI_SIG_CACHE: "OrderedDict[str, bytes]" = OrderedDict()
 _GEMINI_SIG_CACHE_MAX = 4096
+_GEMINI_FOREIGN_CALL_SIG = b"skip_thought_signature_validator"
 _GEMINI_SIG_DB_RETAIN = 7 * 86400
 _GEMINI_SIG_CONN: sqlite3.Connection | None = None
 _GEMINI_SIG_CONN_TRIED = False
@@ -470,6 +471,11 @@ def _messages_to_gemini(
                 sig = base64.b64decode(sig_b64) if isinstance(sig_b64, str) and sig_b64 else None
                 if sig is None:
                     sig = _sig_cache_get(tc.get("id"))
+                if sig is None:
+                    # Вызов сделала не Gemini (фоллбэк на другую модель посреди агентной
+                    # сессии) или подпись потерялась — Gemini 3.x иначе отвечает 400.
+                    # Документированная заглушка для чужих вызовов (проверено 2026-10-29).
+                    sig = _GEMINI_FOREIGN_CALL_SIG
                 parts.append(
                     types.Part(
                         function_call=types.FunctionCall(
