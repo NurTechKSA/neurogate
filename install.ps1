@@ -211,6 +211,8 @@ ACCESS GRANTED. Всё бесплатно, подписки не нужны.
   Перезапустить сервер:    neurogate restart   (setup делает это сам)
   Что-то не так?           neurogate doctor
   Инструкция:              https://neurogate.nurtech.dev
+
+  Автор neurogate — Мансур, Basalt Code: канал t.me/snglrai, связь @abu_js. Спасибо!
 "@
 Pop-Location
 }

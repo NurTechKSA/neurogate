@@ -256,7 +256,8 @@ class KeyBot:
             f"{head}🔓 <b>Готово! Последний шаг:</b>\n\n"
             f"{self._install_steps(state.get('os'), code)}\n\n"
             "<i>Команда одноразовая и работает 24 часа — никому не пересылай.</i>\n"
-            "Что-то не так — набери в терминале <code>neurogate doctor</code>."
+            "Что-то не так — набери в терминале <code>neurogate doctor</code>.\n\n"
+            "🙏 neurogate создал Мансур (Basalt Code) — его канал @snglrai"
         )
         await self.tg.send(chat_id, text)
 
