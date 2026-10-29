@@ -209,6 +209,42 @@ def test_connect_opencode_merges_and_keeps_backup(home, monkeypatch):
     assert "provider" not in backup
 
 
+def test_connect_opencode_selects_neurogate_in_desktop_window(home, monkeypatch):
+    import sqlite3
+
+    monkeypatch.setattr(cli, "_opencode_auth", lambda token: None)
+    db = home / "desk.sqlite"
+    monkeypatch.setattr(cli, "_opencode_desktop_db", lambda: db)
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE state (name text NOT NULL, key text NOT NULL, value text NOT NULL,"
+                " updated_at integer NOT NULL, PRIMARY KEY(name, key))")
+    old = {"user": [{"providerID": "opencode", "modelID": "big-pickle", "visibility": "show"}],
+           "recent": [{"providerID": "opencode", "modelID": "big-pickle"},
+                      {"providerID": "neurogate", "modelID": "code"}], "favorite": [], "variant": {}}
+    con.execute("INSERT INTO state VALUES ('opencode.global.dat', 'model', ?, 1)", (json.dumps(old),))
+    con.commit()
+    con.close()
+    cli.main(["connect", "opencode"])
+    cli.main(["connect", "opencode"])  # повтор не плодит дублей
+    con = sqlite3.connect(db)
+    data = json.loads(con.execute("SELECT value FROM state WHERE key='model'").fetchone()[0])
+    assert data["recent"] == [{"providerID": "neurogate", "modelID": "code"},
+                              {"providerID": "opencode", "modelID": "big-pickle"}]
+    assert data["user"][-1] == {"providerID": "neurogate", "modelID": "code", "visibility": "show"}
+    assert len(data["user"]) == 2
+    cfg = json.loads((home / ".config/opencode/opencode.json").read_text(encoding="utf-8"))
+    assert cfg["small_model"] == "neurogate/code"
+
+
+def test_desktop_model_skips_missing_or_foreign_db(home, monkeypatch):
+    monkeypatch.setattr(cli, "_opencode_desktop_db", lambda: home / "nope.sqlite")
+    assert cli._select_opencode_desktop_model() is False
+    bad = home / "bad.sqlite"
+    bad.write_text("not a database", encoding="utf-8")
+    monkeypatch.setattr(cli, "_opencode_desktop_db", lambda: bad)
+    assert cli._select_opencode_desktop_model() is False
+
+
 def test_connect_opencode_refuses_non_json(home, monkeypatch, capsys):
     monkeypatch.setattr(cli, "_opencode_auth", lambda token: None)
     cfg_path = home / ".config/opencode/opencode.json"

@@ -573,6 +573,56 @@ def _opencode_auth(token: str) -> bool | None:
     return "neurogate" in listed.stdout
 
 
+def _opencode_desktop_db() -> Path:
+    """База состояния окна OpenCode 2.x (Electron userData «ai.opencode.desktop»)."""
+    if platform.system() == "Darwin":
+        root = Path.home() / "Library" / "Application Support"
+    elif os.name == "nt":
+        root = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming")
+    else:
+        root = Path(os.getenv("XDG_CONFIG_HOME") or Path.home() / ".config")
+    return root / "ai.opencode.desktop" / "drafts.sqlite"
+
+
+def _select_opencode_desktop_model() -> bool:
+    """Окно OpenCode открывает новую сессию на последней использованной модели, а не на `model`
+    из конфига: кто хоть раз писал на встроенной Free-модели, так на ней и остаётся. Ставим
+    neurogate/code первой в «недавние» и видимой. Нет базы или другой формат — молча пропускаем."""
+    import sqlite3
+
+    path = _opencode_desktop_db()
+    if not path.exists():
+        return False  # окно ещё не запускали — возьмёт `model` из конфига
+    ours = {"providerID": "neurogate", "modelID": "code"}
+    try:
+        con = sqlite3.connect(path, timeout=5)
+        try:
+            row = con.execute("SELECT value FROM state WHERE name='opencode.global.dat' AND key='model'").fetchone()
+            data = json.loads(row[0]) if row else {}
+            if not isinstance(data, dict):
+                return False
+            same = lambda m: m.get("providerID") == "neurogate" and m.get("modelID") == "code"
+            data["recent"] = [ours] + [m for m in data.get("recent", []) if isinstance(m, dict) and not same(m)]
+            user = [m for m in data.get("user", []) if isinstance(m, dict) and not same(m)]
+            data["user"] = user + [{**ours, "visibility": "show"}]
+            data.setdefault("favorite", [])
+            data.setdefault("variant", {})
+            value = json.dumps(data, ensure_ascii=False)
+            now = int(time.time() * 1000)
+            if row:
+                con.execute("UPDATE state SET value=?, updated_at=? WHERE name='opencode.global.dat' AND key='model'",
+                            (value, now))
+            else:
+                con.execute("INSERT INTO state (name, key, value, updated_at) VALUES ('opencode.global.dat', 'model', ?, ?)",
+                            (value, now))
+            con.commit()
+        finally:
+            con.close()
+    except (sqlite3.Error, ValueError, OSError):
+        return False
+    return True
+
+
 def _connect_opencode(base: str, token: str) -> None:
     """Прописать neurogate провайдером в глобальный конфиг OpenCode (приложение и CLI)
     и сделать бесплатную модель моделью по умолчанию. Остальной конфиг не трогаем."""
@@ -623,9 +673,12 @@ def _connect_opencode(base: str, token: str) -> None:
         },
     }
     cfg["model"] = "neurogate/code"
-    cfg["small_model"] = "neurogate/code_fast"
+    # code_fast в списке моделей провайдера нет — заголовки сессий тоже идут через code
+    cfg["small_model"] = "neurogate/code"
     path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"OpenCode настроен: {path}")
+    if _select_opencode_desktop_model():
+        print("В окне OpenCode neurogate выбран моделью по умолчанию — перезапустите OpenCode.")
     try:
         authed = _opencode_auth(token)
     except (OSError, subprocess.TimeoutExpired):  # зависший или сломанный CLI OpenCode не валит установку
