@@ -64,55 +64,44 @@ def buttons(tg):
 def test_start_asks_computer(bot):
     b, tg = bot
     Driver(b).msg("/start")
-    assert "3 бесплатных ключа" in last(tg) and "Какой у тебя компьютер" in last(tg)
+    assert "один бесплатный ключ" in last(tg) and "Какой у тебя компьютер" in last(tg)
     assert buttons(tg) == ["os:mac", "os:win"]
 
 
-def test_one_button_per_key_then_command_for_chosen_os(bot):
+def test_one_key_then_command_for_chosen_os(bot):
     b, tg = bot
     d = Driver(b)
     d.cb("os:win")
-    assert "Ключ 1 из 3 · Google Gemini" in last(tg) and "/skip" in last(tg)
+    assert "Твой ключ · Google Gemini" in last(tg) and "/skip" in last(tg)
     assert buttons(tg) == ["https://aistudio.google.com/apikey"], "одна кнопка — получить ключ"
     d.msg("bad-key")
     assert "сервис отверг ключ" in last(tg)
     assert ("deleteMessage", {"chat_id": CHAT, "message_id": 1}) in tg.calls
     d.msg("ok-gemini")
-    assert "Gemini (AI Studio)</b> подключён" in last(tg) and "Ключ 2 из 3 · OpenRouter" in last(tg)
-    d.msg("/skip")
-    assert "Ключ 3 из 3 · NVIDIA" in last(tg)
-    d.msg("nvapi-123")
     final = last(tg)
     code = re.search(r"NG-[0-9a-f]{8}-[A-Za-z0-9_-]+", final).group(0)
-    assert "Ключи готовы (2)" in final and "PowerShell" in final and "install.ps1" in final
+    assert "Gemini (AI Studio)</b> подключён" in final, "первый ключ — сразу команда"
+    assert "Последний шаг" in final and "PowerShell" in final and "install.ps1" in final
     assert "install.sh" not in final, "команда только под выбранный компьютер"
     assert tg.sent[-1][1] is None, "в итоге нет кнопок"
     assert b.store.get(CHAT) is None, "сессия с ключами стёрта после выдачи"
     drop_id, secret = keydrop.parse_code(code)
     blob = b.store.take_drop(drop_id)
-    assert keydrop.unseal(secret, blob) == {"GEMINI_API_KEY": "ok-gemini", "NVIDIA_API_KEY": "nvapi-123"}
+    assert keydrop.unseal(secret, blob) == {"GEMINI_API_KEY": "ok-gemini"}
     assert b.store.take_drop(drop_id) is None, "выдаётся один раз"
 
 
-def test_mac_command(bot):
+def test_skip_offers_next_service_then_mac_command(bot):
     b, tg = bot
     d = Driver(b)
     d.cb("os:mac")
-    d.msg("ok-gemini")
     d.msg("/skip")
+    assert "Другой вариант · OpenRouter" in last(tg) and "попроще" in last(tg)
     d.msg("/skip")
-    assert "Терминал" in last(tg) and "install.sh" in last(tg) and "install.ps1" not in last(tg)
-
-
-def test_all_quick_skipped_goes_to_spare_services(bot):
-    b, tg = bot
-    d = Driver(b)
-    d.cb("os:mac")
-    for _ in range(3):
-        d.msg("/skip")
-    assert "Ещё один ключ" in last(tg) and "Без ключа не обойтись" in last(tg)
-    d.msg("ok-spare")
-    assert "Ключи готовы (1)" in last(tg)
+    assert "NVIDIA" in last(tg)
+    d.msg("nvapi-123")
+    final = last(tg)
+    assert "Терминал" in final and "install.sh" in final and "install.ps1" not in final
 
 
 def test_previous_card_buttons_removed(bot):
@@ -133,12 +122,7 @@ def test_done_without_keys_status_reset_and_old_buttons(bot):
     d.msg("/status")
     assert "ни одного ключа" in last(tg)
     d.cb("go")  # кнопка из старых сообщений бота — просто продолжаем
-    assert "Ключ 1 из 3" in last(tg)
-    d.msg("ok-1")
-    d.msg("/status")
-    assert "Ключей: <b>1</b>" in last(tg)
-    d.msg("/start")
-    assert "Ключей уже: <b>1</b>" in last(tg)
+    assert "Твой ключ" in last(tg)
     d.msg("/reset")
     assert b.store.get(CHAT) is None and "Какой у тебя компьютер" in last(tg)
 

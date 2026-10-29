@@ -1,6 +1,7 @@
-"""Telegram-бот «ключи за пять минут»: ученик выбирает компьютер, вставляет 3 бесплатных
-ключа (быстрый старт каталога), бот проверяет каждый, удаляет сообщение с ключом и сразу
-выдаёт одну команду установки под его систему с одноразовым кодом (см. keydrop.py).
+"""Telegram-бот «ключ за пять минут»: ученик выбирает компьютер и вставляет один бесплатный
+ключ (первый из быстрого старта каталога; /skip — следующий), бот проверяет его, удаляет
+сообщение с ключом и сразу выдаёт одну команду установки под его систему с одноразовым
+кодом (см. keydrop.py).
 
 Запуск: `neurogate bot` (TELEGRAM_MODE=polling локально, webhook на сервере).
 Окружение:
@@ -138,7 +139,6 @@ class KeyBot:
         self.drop_url = drop_url
         catalog = load_catalog()
         self.services = ordered_services(catalog)
-        self.quick_n = len([i for i in catalog.get("quick", []) if any(s["id"] == i for s in self.services)])
         # Последняя карточка с кнопками в каждом чате — у неё снимаем кнопки, когда
         # приходит следующая (иначе в чате копятся одинаковые «Пропустить»)
         self.last_card: dict[int, int] = {}
@@ -152,7 +152,7 @@ class KeyBot:
     def _card(self, s: dict, idx: int, note: str = "") -> tuple[str, list[list[dict]]]:
         """Один ключ — одно сообщение и одна кнопка. Пропуск — командой /skip."""
         e = html.escape
-        head = f"Ключ {idx + 1} из {self.quick_n}" if idx < self.quick_n else "Ещё один ключ"
+        head = "Твой ключ" if idx == 0 else "Другой вариант"
         steps = "\n".join(f"{i}. {e(step)}" for i, step in enumerate(s.get("steps", []), 1))
         text = (
             f"🔑 <b>{head} · {e(s['name'])}</b>\n\n"
@@ -166,12 +166,13 @@ class KeyBot:
 
     async def _show(self, chat_id: int, state: dict, note: str = "") -> None:
         idx = state["idx"]
-        # Быстрые ключи пройдены и хоть один есть — сразу команда, без выбора «ещё / хватит»
-        if idx >= len(self.services) or (idx >= self.quick_n and self._got(state["keys"])):
+        # Первый рабочий ключ — сразу команда: одна регистрация вместо трёх. Остальные
+        # ключи ученик добавит потом (`neurogate setup`), когда начнут мешать лимиты.
+        if idx >= len(self.services) or self._got(state["keys"]):
             await self.finish(chat_id, note)
             return
-        if idx >= self.quick_n and not note:
-            note = "Без ключа не обойтись — попробуй этот сервис."
+        if idx and not note:
+            note = "Не страшно — вот сервис попроще."
         text, buttons = self._card(self.services[idx], idx, note)
         await self._send_card(chat_id, text, buttons)
 
@@ -187,16 +188,12 @@ class KeyBot:
     # --- commands
 
     async def start(self, chat_id: int) -> None:
-        state = self.store.get(chat_id)
-        have = self._got(state["keys"]) if state else 0
         text = (
             "⚡ <b>Бесплатный ИИ-программист за 5 минут</b>\n\n"
-            f"Соберём {self.quick_n} бесплатных ключа — потом дам одну команду, она всё настроит сама. "
+            "Нужен один бесплатный ключ — потом дам одну команду, она всё настроит сама. "
             "Карта не нужна.\n\n"
+            "Какой у тебя компьютер?"
         )
-        if have:
-            text += f"Ключей уже: <b>{have}</b> — продолжим с того же места.\n\n"
-        text += "Какой у тебя компьютер?"
         await self._send_card(chat_id, text, [[{"text": "🍏 Mac", "callback_data": "os:mac"},
                                                {"text": "🪟 Windows", "callback_data": "os:win"}]])
 
@@ -256,7 +253,7 @@ class KeyBot:
         self.store.drop_session(chat_id)
         head = f"{note}\n\n" if note else ""
         text = (
-            f"{head}🔓 <b>Ключи готовы ({self._got(keys)}). Последний шаг:</b>\n\n"
+            f"{head}🔓 <b>Готово! Последний шаг:</b>\n\n"
             f"{self._install_steps(state.get('os'), code)}\n\n"
             "<i>Команда одноразовая и работает 24 часа — никому не пересылай.</i>\n"
             "Что-то не так — набери в терминале <code>neurogate doctor</code>."
