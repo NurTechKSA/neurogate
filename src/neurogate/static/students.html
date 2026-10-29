@@ -422,7 +422,8 @@ footer { font: 400 13px/1.7 var(--f-mono); color: var(--muted); border-top: 1px 
             а песочнице Codex разрешит связь со шлюзом.</p>
           <div class="cmd"><pre id="orch">neurogate connect orchestrator --global</pre><button class="copy" type="button" data-copy="orch">скопировать</button></div>
           <p class="note">Только для одного проекта — запусти в его папке без <code>--global</code>.
-            Перезапусти Claude Code или Codex, чтобы правило подхватилось.</p>
+            Перезапусти Claude Code или Codex, чтобы правило подхватилось. Уже включал раньше —
+            запусти команду ещё раз: она обновит правило до новой версии.</p>
         </div>
       </article>
       <article class="step">
@@ -453,6 +454,7 @@ footer { font: 400 13px/1.7 var(--f-mono); color: var(--muted); border-top: 1px 
       <div class="cheat"><pre id="c2">neurogate setup</pre><span>Добавить ключи — мастер со ссылками на каждый сервис.</span><button class="copy" type="button" data-copy="c2">скопировать</button></div>
       <div class="cheat"><pre id="c3">neurogate keys</pre><span>Какие ключи есть и живы ли они.</span><button class="copy" type="button" data-copy="c3">скопировать</button></div>
       <div class="cheat"><pre id="c4">neurogate delegate "задача"</pre><span>Поручить задачу бесплатному агенту — он сам правит файлы в текущей папке.</span><button class="copy" type="button" data-copy="c4">скопировать</button></div>
+      <div class="cheat"><pre id="c4f">neurogate delegate --file задача.md</pre><span>То же, но длинная задача — из файла (на Windows так надёжнее).</span><button class="copy" type="button" data-copy="c4f">скопировать</button></div>
       <div class="cheat"><pre id="c5">neurogate ask "вопрос"</pre><span>Быстрый ответ бесплатной модели прямо в терминале.</span><button class="copy" type="button" data-copy="c5">скопировать</button></div>
       <div class="cheat"><pre id="c6">claude-free</pre><span>Claude Code целиком на бесплатных моделях (подписка не нужна).</span><button class="copy" type="button" data-copy="c6">скопировать</button></div>
       <div class="cheat"><pre id="c7">codex-free</pre><span>Codex на бесплатных моделях; обычный <code>codex</code> не меняется.</span><button class="copy" type="button" data-copy="c7">скопировать</button></div>

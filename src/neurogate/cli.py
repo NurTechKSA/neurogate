@@ -750,6 +750,7 @@ ORCHESTRATOR_BLOCK = f"""{ORCHESTRATOR_MARK}
 Сам пиши код, только если объяснить дольше, чем сделать. Команды идут 1–10 минут — ставь
 большой таймаут. Команде нужен доступ к локальной сети (127.0.0.1) — в песочнице разреши
 её запуск. Не отвечает neurogate — `neurogate doctor`.
+<!-- /neurogate:orchestrator -->
 """
 
 
@@ -759,10 +760,29 @@ def _caller_dir() -> Path:
     return Path(os.getenv("NEUROGATE_CALLER_DIR") or os.getcwd())
 
 
+ORCHESTRATOR_END = "<!-- /neurogate:orchestrator -->"
+
+
 def _write_orchestrator(path: Path) -> str:
     text = path.read_text(encoding="utf-8") if path.exists() else ""
     if ORCHESTRATOR_MARK in text:
-        return "уже есть"
+        # Блок уже есть — обновляем до текущей версии, чужой текст вокруг не трогаем.
+        # Старые версии без закрывающей метки кончаются строкой про `neurogate doctor`.
+        start = text.index(ORCHESTRATOR_MARK)
+        end = text.find(ORCHESTRATOR_END, start)
+        if end != -1:
+            end += len(ORCHESTRATOR_END)
+        else:
+            tail = text.find("`neurogate doctor`.", start)
+            if tail == -1:
+                return "уже есть (свой вариант — не трогаю)"
+            end = tail + len("`neurogate doctor`.")
+        if text.startswith("\n", end):
+            end += 1
+        if text[start:end] == ORCHESTRATOR_BLOCK:
+            return "уже есть"
+        path.write_text(text[:start] + ORCHESTRATOR_BLOCK + text[end:], encoding="utf-8")
+        return "обновлено"
     sep = "\n\n" if text and not text.endswith("\n\n") else ""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text + sep + ORCHESTRATOR_BLOCK, encoding="utf-8")

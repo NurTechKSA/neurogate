@@ -250,6 +250,19 @@ def test_connect_orchestrator_local_and_global_idempotent(home, tmp_path, monkey
     assert cli.ORCHESTRATOR_MARK in (home / ".claude/CLAUDE.md").read_text(encoding="utf-8")
 
 
+
+def test_connect_orchestrator_upgrades_old_block(tmp_path):
+    old = (cli.ORCHESTRATOR_MARK + "\n## Бесплатные исполнители (neurogate)\nстарый текст\n"
+           "её запуск. Не отвечает neurogate — `neurogate doctor`.\n")
+    path = tmp_path / "CLAUDE.md"
+    path.write_text("# моё\n\n" + old + "\n# после\n", encoding="utf-8")
+    assert cli._write_orchestrator(path) == "обновлено"
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("# моё") and text.endswith("\n# после\n"), "чужой текст вокруг цел"
+    assert "старый текст" not in text and "--file" in text and text.count(cli.ORCHESTRATOR_MARK) == 1
+    assert cli._write_orchestrator(path) == "уже есть"
+
+
 # ---------------------------------------------------------------- doctor
 
 def _doctor_env(home, monkeypatch, *, keys="GEMINI_API_KEY=a\nOPENROUTER_API_KEY=b\nNVIDIA_API_KEY=c\n",

@@ -4,6 +4,10 @@
 # Что делает: ставит uv, качает neurogate в %USERPROFILE%\neurogate, ставит зависимости,
 # запускает мастер ключей, включает автозапуск при входе в Windows и подключает Claude Code.
 # Повторный запуск безопасен — обновит код и ничего не сотрёт.
+#
+# Весь скрипт — в блоке & { }: под `irm | iex` иначе $ErrorActionPreference и функции оставались
+# бы в окне ученика после установки.
+& {
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $env:PYTHONUTF8 = "1"
@@ -41,7 +45,7 @@ if (Test-Path (Join-Path $Dir ".git")) {
     New-Item -ItemType Directory -Force -Path $Dir | Out-Null
     Copy-Item (Join-Path (Get-ChildItem $tmp)[0].FullName "*") $Dir -Recurse -Force
 }
-Set-Location $Dir
+Push-Location $Dir
 
 # Повторная установка: работающий сервер держит файлы пакетов (.pyd), и uv sync не сможет их
 # обновить («Отказано в доступе») — гасим его до обновления.
@@ -87,7 +91,11 @@ if ($env:NEUROGATE_CODE) {
     if ($LASTEXITCODE -ne 0) { Write-Host "Ключи по коду не забрались. Можно ввести их вручную: neurogate setup" }
 } else {
     Say "4/6 Ключи нейросетей (можно пропускать и вернуться позже: neurogate setup)"
-    & $Uv run neurogate setup
+    if ([Console]::IsInputRedirected) {
+        Write-Host "Нет интерактивного терминала — добавьте ключи потом: neurogate setup"
+    } else {
+        & $Uv run neurogate setup
+    }
 }
 
 Say "5/6 Автозапуск сервера при входе в Windows"
@@ -177,7 +185,7 @@ ACCESS GRANTED. Всё бесплатно, подписки не нужны.
 
   * Приложение OpenCode (окно, как у Claude/ChatGPT):
      скачайте (ссылка ниже) -> откройте -> выберите папку проекта -> пишите задачу.
-     Модель «neurogate/code» уже выбрана.
+     Один раз подключите neurogate: список моделей -> «+» -> neurogate (бесплатно) -> ключ выше.
   Панель и тестовый чат:   http://127.0.0.1:$Port/dashboard
   Claude Code в терминале: claude-free
   Codex бесплатно:         codex-free
@@ -196,4 +204,6 @@ if (-not ($ocPaths | Where-Object { Test-Path $_ })) {
     Write-Host "`nOpenCode ещё не установлен — скачиваю установщик: $ocUrl"
     Write-Host "Когда скачается — запустите его."
     Start-Process $ocUrl
+}
+Pop-Location
 }
