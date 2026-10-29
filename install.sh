@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Установка neurogate одной командой (macOS / Linux):
-#   curl -fsSL https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.sh | bash
 # С ключами из Telegram-бота: ... | NEUROGATE_CODE=NG-xxxx bash  (команду целиком выдаёт бот)
 #
 # NEUROGATE_NO_AUTOSTART=1 — не ставить автозапуск (сервер, тесты, «запущу сам»).
@@ -10,7 +10,7 @@
 # Повторный запуск безопасен — обновит код и ничего не сотрёт.
 set -euo pipefail
 
-REPO="${NEUROGATE_REPO:-https://github.com/RYAZHAPOVILNUR/neurogate.git}"
+REPO="${NEUROGATE_REPO:-https://github.com/NurTechKSA/neurogate.git}"
 DIR="${NEUROGATE_DIR:-$HOME/neurogate}"
 PORT="${NEUROGATE_PORT:-8765}"
 

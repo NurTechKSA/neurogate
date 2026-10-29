@@ -19,20 +19,20 @@
 4. Откройте новое окно терминала и запустите `claude-free`.
 
 Есть ИИ-агент (Claude Code, Cline…)? Можно сказать ему:
-«установи neurogate по инструкции https://github.com/RYAZHAPOVILNUR/neurogate/blob/main/docs/agent-install.md».
+«установи neurogate по инструкции https://github.com/NurTechKSA/neurogate/blob/main/docs/agent-install.md».
 
 ## Без бота: установка одной командой
 
 **macOS / Linux** — откройте «Терминал» и вставьте:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.sh | bash
 ```
 
 **Windows** — откройте PowerShell (Пуск → «PowerShell») и вставьте:
 
 ```powershell
-irm https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.ps1 | iex
 ```
 
 Установщик сам скачает всё нужное, а потом запустит **мастер ключей**.

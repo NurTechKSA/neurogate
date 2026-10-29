@@ -29,13 +29,13 @@
 macOS / Linux (с кодом подставь его, без кода убери `NEUROGATE_CODE=…`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.sh | NEUROGATE_CODE=NG-... bash
+curl -fsSL https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.sh | NEUROGATE_CODE=NG-... bash
 ```
 
 Windows (PowerShell):
 
 ```powershell
-$env:NEUROGATE_CODE="NG-..."; irm https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.ps1 | iex
+$env:NEUROGATE_CODE="NG-..."; irm https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.ps1 | iex
 ```
 
 Если ты не можешь дать человеку ввести данные в терминал (нет интерактивного ввода), а кода

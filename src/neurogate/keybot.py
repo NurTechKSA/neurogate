@@ -35,7 +35,7 @@ from neurogate.keydrop import DEFAULT_DROP_URL, new_code, seal
 
 log = logging.getLogger("neurogate.keybot")
 
-REPO_RAW = "https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main"
+REPO_RAW = "https://raw.githubusercontent.com/NurTechKSA/neurogate/main"
 DROP_TTL = 24 * 3600
 SESSION_TTL = 7 * 24 * 3600
 _PRIORITY_BADGE = {1: "⭐ начните с этого", 2: "➕ дополнительный", 3: "⚠️ с неудобствами"}

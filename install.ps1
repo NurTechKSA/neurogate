@@ -1,5 +1,5 @@
 # Установка neurogate одной командой (Windows, PowerShell):
-#   irm https://raw.githubusercontent.com/RYAZHAPOVILNUR/neurogate/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.ps1 | iex
 #
 # Что делает: ставит uv, качает neurogate в %USERPROFILE%\neurogate, ставит зависимости,
 # запускает мастер ключей, включает автозапуск при входе в Windows и подключает Claude Code.
@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $env:PYTHONUTF8 = "1"
 
-$Repo = if ($env:NEUROGATE_REPO) { $env:NEUROGATE_REPO } else { "https://github.com/RYAZHAPOVILNUR/neurogate" }
+$Repo = if ($env:NEUROGATE_REPO) { $env:NEUROGATE_REPO } else { "https://github.com/NurTechKSA/neurogate" }
 $Dir  = if ($env:NEUROGATE_DIR)  { $env:NEUROGATE_DIR }  else { Join-Path $HOME "neurogate" }
 $Port = if ($env:NEUROGATE_PORT) { $env:NEUROGATE_PORT } else { "8765" }
 $Bin  = Join-Path $HOME ".local\bin"
