@@ -174,7 +174,6 @@ section { display: grid; gap: 18px; scroll-margin-top: 72px; }
 .copy:hover { background: rgba(61,255,140,.14); }
 .copy.done { color: var(--void); background: var(--green); border-color: var(--green); }
 
-.keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 6px 0 10px; }
 .key { border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 14px; background: var(--panel-2); display: grid; gap: 4px; }
 .key a { font: 700 15px/1.3 var(--f-mono); }
 .key span { font-size: 13.5px; color: var(--muted); line-height: 1.45; }
@@ -215,7 +214,7 @@ footer { font: 400 13px/1.7 var(--f-mono); color: var(--muted); border-top: 1px 
 
 @media (max-width: 720px) {
   .wrap { gap: 52px; }
-  .paths, .keys, .flow { grid-template-columns: 1fr; }
+  .paths, .flow { grid-template-columns: 1fr; }
   .os nav { display: none; }
   .cheat { grid-template-columns: minmax(0, 1fr) auto; }
   .cheat span { grid-column: 1 / -1; grid-row: 2; }
@@ -355,34 +354,23 @@ footer { font: 400 13px/1.7 var(--f-mono); color: var(--muted); border-top: 1px 
     <div class="steps">
       <article class="step">
         <div class="body">
-          <h4>Возьми 3 бесплатных ключа</h4>
-          <p>Ключ — личный пропуск к нейросети. Каждый сервис выдаёт его бесплатно за пару минут,
-            карта не нужна. Открой ссылку, войди и создай ключ:</p>
-          <div class="keys">
-            <div class="key"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google Gemini ↗</a><span>Google-аккаунт → «Create API key». Из РФ — с VPN.</span></div>
-            <div class="key"><a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter ↗</a><span>Вход через Google или GitHub → «Create Key».</span></div>
-            <div class="key"><a href="https://build.nvidia.com/settings/api-keys" target="_blank" rel="noopener">NVIDIA NIM ↗</a><span>Только почта → «Generate API Key».</span></div>
-          </div>
-          <p class="note">Удобнее всего собрать ключи в боте: он даёт ссылки по очереди, проверяет
-            каждый ключ и в конце выдаёт <b>одну команду установки с твоими ключами</b>.
-            Хочешь ввести ключи сам — пропусти бота: установщик спросит их по очереди.</p>
-          <a class="btn ghost" href="https://t.me/nurtechneurogatebot" target="_blank" rel="noopener">▶ Бот @nurtechneurogatebot</a>
+          <h4>Зайди в бота — он проведёт по шагам</h4>
+          <p>Открой бота и нажми <b>Start</b>. Он по очереди даст ссылки на бесплатные нейросети,
+            подскажет, куда нажать, сам проверит каждый ключ и в конце выдаст <b>одну готовую команду</b>.
+            Карта не нужна.</p>
+          <a class="btn" href="https://t.me/nurtechneurogatebot" target="_blank" rel="noopener">▶ Открыть бота @nurtechneurogatebot</a>
         </div>
       </article>
       <article class="step">
         <div class="body">
-          <h4>Открой терминал и вставь команду</h4>
+          <h4>Вставь команду из бота в терминал</h4>
           <p data-show="mac">Терминал: нажми <b>⌘ + Пробел</b>, набери «Терминал», нажми Enter.</p>
           <p data-show="win" hidden>PowerShell: нажми <b>Пуск</b>, набери «PowerShell», нажми Enter
             (обычный, не «от имени администратора»).</p>
-          <p>Скопируй команду, вставь в терминал (<span data-show="mac">⌘ + V</span><span data-show="win" hidden>правый клик или Ctrl + V</span>)
-            и нажми Enter. Если брал ключи в боте — вставь команду <b>из бота</b>, в ней уже твои ключи.</p>
-          <div class="cmd" data-show="mac"><pre id="inst-mac">curl -fsSL https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.sh | bash</pre><button class="copy" type="button" data-copy="inst-mac">скопировать</button></div>
-          <div class="cmd ps" data-show="win" hidden><pre id="inst-win">irm https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.ps1 | iex</pre><button class="copy" type="button" data-copy="inst-win">скопировать</button></div>
+          <p>Скопируй команду из бота, вставь в терминал (<span data-show="mac">⌘ + V</span><span data-show="win" hidden>правый клик или Ctrl + V</span>)
+            и нажми Enter. В ней уже твои ключи — больше ничего вводить не надо.</p>
           <ul class="note">
             <li>Установщик сам скачает всё нужное — 2–3 минуты.</li>
-            <li>Спросит ключи: <b>Enter</b> — открыть страницу сервиса, потом вставь ключ
-              (на экране он не виден — так и надо) и снова Enter.</li>
             <li data-show="mac">Mac может попросить поставить «инструменты разработчика» — соглашайся, это нормально.</li>
             <li>В конце увидишь <b>ACCESS GRANTED</b>. Открой <b>новое</b> окно терминала.</li>
           </ul>
@@ -418,10 +406,9 @@ footer { font: 400 13px/1.7 var(--f-mono); color: var(--muted); border-top: 1px 
       <article class="step">
         <div class="body">
           <h4>Поставь neurogate</h4>
-          <p>Те же шаги, что в <a href="#free">уровне 2</a>: 3 ключа и одна команда. Если уже ставил —
-            пропусти этот шаг.</p>
-          <div class="cmd" data-show="mac"><pre id="inst-mac2">curl -fsSL https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.sh | bash</pre><button class="copy" type="button" data-copy="inst-mac2">скопировать</button></div>
-          <div class="cmd ps" data-show="win" hidden><pre id="inst-win2">irm https://raw.githubusercontent.com/NurTechKSA/neurogate/main/install.ps1 | iex</pre><button class="copy" type="button" data-copy="inst-win2">скопировать</button></div>
+          <p>Те же шаги, что в <a href="#free">уровне 2</a>: бот → команда из бота в терминал.
+            Если уже ставил — пропусти этот шаг.</p>
+          <a class="btn ghost" href="https://t.me/nurtechneurogatebot" target="_blank" rel="noopener">▶ Бот @nurtechneurogatebot</a>
         </div>
       </article>
       <article class="step">
