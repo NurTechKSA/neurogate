@@ -107,7 +107,7 @@ elif [ "$(uname)" = "Darwin" ]; then
 </dict></plist>
 EOF
   launchctl unload "$PLIST" 2>/dev/null || true
-  launchctl load "$PLIST"
+  launchctl load "$PLIST" || echo "Автозапуск не включился — запускайте вручную: neurogate serve"
 elif command -v systemctl >/dev/null 2>&1; then
   UNIT="$HOME/.config/systemd/user/neurogate.service"
   mkdir -p "$(dirname "$UNIT")"
@@ -126,9 +126,8 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 EOF
-  systemctl --user daemon-reload
-  systemctl --user enable --now neurogate
-  systemctl --user restart neurogate
+  { systemctl --user daemon-reload && systemctl --user enable --now neurogate \
+      && systemctl --user restart neurogate; } || echo "Автозапуск не включился — запускайте вручную: neurogate serve"
 else
   echo "Автозапуск не настроен. Запускайте вручную: cd $DIR && uv run neurogate"
 fi
@@ -146,15 +145,9 @@ if [ -z "${NEUROGATE_NO_AUTOSTART:-}" ]; then
 fi
 
 say "6/6 Подключение программ"
-"$UV" run neurogate connect opencode
-"$UV" run neurogate connect claude-code
-"$UV" run neurogate connect codex
-if ! command -v claude >/dev/null 2>&1; then
-  echo "Claude Code не найден. Поставить: curl -fsSL https://claude.ai/install.sh | bash"
-fi
-
-# Короткая команда `neurogate` из любой папки. Сразу из .venv, без `uv run`: в песочнице
-# Codex uv падает — ему некуда писать кэш (~/.cache/uv).
+# Короткая команда `neurogate` из любой папки — до подключения программ, чтобы их сбой не
+# оставил без команды. Сразу из .venv, без `uv run`: в песочнице Codex uv падает — ему
+# некуда писать кэш (~/.cache/uv).
 cat > "$HOME/.local/bin/neurogate" <<EOF
 #!/bin/sh
 NEUROGATE_CALLER_DIR="\$PWD" && export NEUROGATE_CALLER_DIR && cd "$DIR" || exit 1
@@ -162,6 +155,14 @@ NEUROGATE_CALLER_DIR="\$PWD" && export NEUROGATE_CALLER_DIR && cd "$DIR" || exit
 exec "$UV" run neurogate "\$@"
 EOF
 chmod +x "$HOME/.local/bin/neurogate"
+
+# Сбой одной программы не прерывает установку (set -e) — остальные подключаются.
+"$UV" run neurogate connect opencode || echo "OpenCode не подключился — позже: neurogate connect opencode"
+"$UV" run neurogate connect claude-code || echo "Claude Code не подключился — позже: neurogate connect claude-code"
+"$UV" run neurogate connect codex || echo "Codex не подключился — позже: neurogate connect codex"
+if ! command -v claude >/dev/null 2>&1; then
+  echo "Claude Code не найден. Поставить: curl -fsSL https://claude.ai/install.sh | bash"
+fi
 
 # ~/.local/bin в PATH — иначе ни neurogate, ни claude-free, ни claude не найдутся.
 case "${SHELL##*/}" in

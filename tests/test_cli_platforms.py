@@ -131,3 +131,67 @@ def test_tg_client_call_and_send(monkeypatch):
     url, body = posted[0]
     assert url == "https://api.telegram.org/bot123:abc/sendMessage"
     assert body["parse_mode"] == "HTML" and body["reply_markup"]["inline_keyboard"][0][0]["text"] == "x"
+
+
+def test_windows_shims_have_setlocal_and_git_bash_twins(home, monkeypatch):
+    monkeypatch.setattr(cli.platform, "system", lambda: "Windows")
+    cli.main(["connect", "claude-code"])
+    cli.main(["connect", "codex"])
+    bin_ = home / ".local/bin"
+    assert "setlocal" in (bin_ / "claude-free.cmd").read_text(encoding="utf-8")
+    # Git Bash (Claude Code на Windows) не находит .cmd — рядом sh-версии с \n
+    assert (bin_ / "claude-free").read_bytes().startswith(b"#!/bin/sh\n")
+    assert b"\r" not in (bin_ / "codex-free").read_bytes()
+
+
+def test_restart_windows_without_task_uses_startup_shortcut(home, monkeypatch, tmp_path):
+    monkeypatch.setattr(cli.platform, "system", lambda: "Windows")
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli.subprocess, "run", lambda cmd, **kw: R(1 if cmd[0] == "schtasks" else 0))
+    started = []
+    monkeypatch.setattr(cli.subprocess, "Popen", lambda cmd, **kw: started.append(cmd))
+    monkeypatch.setattr(cli, "_gateway_alive", lambda base: bool(started))  # поднялся после запуска
+    assert cli.restart_service() is False, "ни задачи, ни ярлыка — службы нет"
+    lnk = tmp_path / "appdata/Microsoft/Windows/Start Menu/Programs/Startup/neurogate.lnk"
+    lnk.parent.mkdir(parents=True)
+    lnk.write_text("x")
+    (tmp_path / ".venv/Scripts").mkdir(parents=True)
+    (tmp_path / ".venv/Scripts/pythonw.exe").write_text("x")
+    assert cli.restart_service() is True
+    assert started[0][1:] == ["-X", "utf8", "-m", "neurogate.background"]
+
+
+def test_batch_safe_moves_multiline_task_to_file(monkeypatch, tmp_path):
+    task_file = tmp_path / ".neurogate-task-1.md"
+    monkeypatch.setattr(cli.os, "name", "posix")
+    assert cli._batch_safe("/x/opencode.cmd", "a\nb", task_file) == "a\nb"
+    monkeypatch.setattr(cli.os, "name", "nt")
+    assert cli._batch_safe(r"C:\x\opencode-cli.exe", "a\nb", task_file) == "a\nb", ".exe получает текст как есть"
+    msg = cli._batch_safe(r"C:\npm\opencode.CMD", "строка 1\nстрока 2 & del", task_file)
+    assert "\n" not in msg and ".neurogate-task-1.md" in msg
+    assert task_file.read_text(encoding="utf-8") == "строка 1\nстрока 2 & del"
+
+
+def test_ask_and_delegate_read_task_from_file(home, monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NEUROGATE_CALLER_DIR", str(tmp_path))
+    (tmp_path / "q.md").write_text("\ufeffпервая\nвторая\n", encoding="utf-8")
+    assert cli._arg_text([], "q.md") == "первая\nвторая"
+    assert cli._arg_text(["a", "b"], None) == "a b"
+    assert cli.main(["ask"]) == 2
+    assert "Нет вопроса" in capsys.readouterr().out
+
+
+def test_native_bin_rejects_windows_batch_shims(monkeypatch):
+    from neurogate import config
+    monkeypatch.setattr(config.shutil, "which", lambda name: r"C:\npm\opencode.cmd")
+    monkeypatch.setattr(config.os, "name", "nt")
+    assert config._native_bin("opencode") is None, "cmd.exe выполнил бы & | из текста чата"
+    monkeypatch.setattr(config.shutil, "which", lambda name: r"C:\x\claude.exe")
+    assert config._native_bin("claude") == r"C:\x\claude.exe"
+
+
+def test_arg_text_missing_file(monkeypatch, tmp_path):
+    monkeypatch.setenv("NEUROGATE_CALLER_DIR", str(tmp_path))
+    with pytest.raises(SystemExit, match="Нет файла"):
+        cli._arg_text([], "nope.md")

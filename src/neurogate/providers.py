@@ -21,6 +21,10 @@ from google.genai import types
 
 log = logging.getLogger(__name__)
 
+# Сервер на Windows крутится под pythonw без консоли — каждая дочерняя консольная программа
+# (claude, opencode) иначе открывала бы своё окно.
+_NO_WINDOW = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+
 
 # OpenAI-совместимые клиенты (cline, OpenAI SDK pydantic-модели и т.п.) при echo
 # истории выкидывают неизвестные поля у tool_call, теряя `_gemini_thought_signature`.
@@ -4535,6 +4539,7 @@ class ClaudeCLIProvider:
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                **_NO_WINDOW,
             )
         except FileNotFoundError as e:
             raise RuntimeError(f"{self.name} server error: {e}") from e
@@ -4696,6 +4701,7 @@ class OpenCodeCLIProvider:
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                **_NO_WINDOW,
             )
         except FileNotFoundError as e:
             raise RuntimeError(f"{self.name} server error: {e}") from e

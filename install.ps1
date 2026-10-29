@@ -14,6 +14,7 @@ $Port = if ($env:NEUROGATE_PORT) { $env:NEUROGATE_PORT } else { "8765" }
 $Bin  = Join-Path $HOME ".local\bin"
 
 function Say($t) { Write-Host "`n> $t" -ForegroundColor Cyan }
+$ProgressPreference = "SilentlyContinue"   # полоса загрузки в PS 5.1 замедляет скачивание в разы
 
 Say "1/6 Менеджер Python-окружений uv"
 New-Item -ItemType Directory -Force -Path $Bin | Out-Null
@@ -33,7 +34,7 @@ if (Test-Path (Join-Path $Dir ".git")) {
     git clone --depth 1 "$Repo.git" $Dir
 } else {
     $zip = Join-Path $env:TEMP "neurogate.zip"
-    Invoke-WebRequest "$Repo/archive/refs/heads/main.zip" -OutFile $zip
+    Invoke-WebRequest "$Repo/archive/refs/heads/main.zip" -OutFile $zip -UseBasicParsing
     $tmp = Join-Path $env:TEMP "neurogate-src"
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
     Expand-Archive $zip $tmp
@@ -42,24 +43,42 @@ if (Test-Path (Join-Path $Dir ".git")) {
 }
 Set-Location $Dir
 
+# Повторная установка: работающий сервер держит файлы пакетов (.pyd), и uv sync не сможет их
+# обновить («Отказано в доступе») — гасим его до обновления.
+# Прошлая установка могла взять другой порт (свой занят) — он записан в .env
+$envFile = Join-Path $Dir ".env"
+if (-not $env:NEUROGATE_PORT -and (Test-Path $envFile)) {
+    $m = Select-String -Path $envFile -Pattern '^NEUROGATE_PORT=(\d+)' | Select-Object -First 1
+    if ($m) { $Port = $m.Matches[0].Groups[1].Value }
+}
+$ours = $false
+try { $ours = (Invoke-RestMethod "http://127.0.0.1:$Port/health" -TimeoutSec 2 -UseBasicParsing).ok } catch {}
+Stop-ScheduledTask -TaskName "neurogate" -ErrorAction SilentlyContinue
+if ($ours) {
+    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+    Start-Sleep 1
+}
+
 Say "3/6 Зависимости"
 & $Uv sync --frozen
+if ($LASTEXITCODE -ne 0) { throw "Не установились зависимости (uv sync). Закройте программы neurogate и запустите команду ещё раз." }
 if (-not (Test-Path ".env")) { Copy-Item ".env.example" ".env" }
 if (-not (Test-Path "config.yaml")) { Copy-Item "config.yaml.example" "config.yaml" }
 
 # Порт занят чужой программой (не нашим прошлым запуском) — берём следующий свободный.
 function PortBusy($p) { [bool](Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue) }
-$ours = $false
-try { $ours = (Invoke-RestMethod "http://127.0.0.1:$Port/health" -TimeoutSec 2).ok } catch {}
 if ((PortBusy $Port) -and -not $ours) {
     foreach ($p in ([int]$Port + 1)..([int]$Port + 20)) {
         if (-not (PortBusy $p)) { Write-Host "Порт $Port занят другой программой — беру $p."; $Port = "$p"; break }
     }
 }
-$envText = Get-Content .env -Raw
+# .env в UTF-8 без BOM: PS 5.1 по умолчанию читает его как cp1251, а пишет с BOM — комментарии портились
+$envPath = Join-Path $Dir ".env"
+$envText = [IO.File]::ReadAllText($envPath, [Text.Encoding]::UTF8)
 if ($envText -match "(?m)^NEUROGATE_PORT=") { $envText = $envText -replace "(?m)^NEUROGATE_PORT=.*", "NEUROGATE_PORT=$Port" }
 else { $envText += "`nNEUROGATE_PORT=$Port`n" }
-Set-Content -Encoding UTF8 .env $envText
+[IO.File]::WriteAllText($envPath, $envText, (New-Object Text.UTF8Encoding $false))
 $env:NEUROGATE_PORT = $Port
 
 if ($env:NEUROGATE_CODE) {
@@ -78,13 +97,6 @@ $pyw = Join-Path $Dir ".venv\Scripts\pythonw.exe"
 if (-not (Test-Path $pyw)) { $pyw = Join-Path $Dir ".venv\Scripts\python.exe" }
 $pyArgs = "-X utf8 -m neurogate.background"
 Remove-Item (Join-Path $Dir "neurogate-serve.cmd") -ErrorAction SilentlyContinue
-
-# Прошлый сервер (повторная установка) держит порт — гасим, иначе новый не поднимется.
-Stop-ScheduledTask -TaskName "neurogate" -ErrorAction SilentlyContinue
-if ($ours) {
-    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
-}
 
 $started = $false
 try {
@@ -134,11 +146,18 @@ function CmdPath($p) { if ($p.StartsWith($HOME, [StringComparison]::OrdinalIgnor
 $cmdDir = CmdPath $Dir
 @"
 @echo off
+setlocal
 set PYTHONUTF8=1
 set NEUROGATE_CALLER_DIR=%CD%
 cd /d "$cmdDir"
 if exist "$cmdDir\.venv\Scripts\neurogate.exe" ("$cmdDir\.venv\Scripts\neurogate.exe" %*) else ("$(CmdPath $Uv)" run neurogate %*)
 "@ | Set-Content -Encoding ASCII (Join-Path $Bin "neurogate.cmd")
+# То же для Git Bash (в нём работает Claude Code на Windows): .cmd оттуда по имени не находится.
+# Сразу .exe, без cmd.exe — многострочные задачи доходят целиком. $USERPROFILE, а не $HOME:
+# HOME в Git Bash часто переопределяют под git/ssh.
+$shDir = if ($Dir.StartsWith($HOME, [StringComparison]::OrdinalIgnoreCase)) { '$USERPROFILE' + $Dir.Substring($HOME.Length).Replace('\', '/') } else { $Dir.Replace('\', '/') }
+$sh = "#!/bin/sh`nexport PYTHONUTF8=1`nNEUROGATE_CALLER_DIR=`"`$(pwd -W 2>/dev/null || pwd)`"`nexport NEUROGATE_CALLER_DIR`ncd `"$shDir`" || exit 1`n[ -x ./.venv/Scripts/neurogate.exe ] || exec uv run neurogate `"`$@`"`nexec ./.venv/Scripts/neurogate.exe `"`$@`"`n"
+[IO.File]::WriteAllText((Join-Path $Bin "neurogate"), $sh, (New-Object Text.UTF8Encoding $false))
 & $Uv run neurogate connect opencode
 & $Uv run neurogate connect claude-code
 & $Uv run neurogate connect codex

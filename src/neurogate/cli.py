@@ -175,7 +175,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
 
     print(f"\nГотово, сохранено ключей: {saved}.")
     if saved and not restart_service():
-        print("Перезапустите сервер (Ctrl+C и снова `neurogate`), чтобы ключи подхватились.")
+        print("Перезапустите сервер (Ctrl+C и снова `neurogate serve`), чтобы ключи подхватились.")
     print("Проверить все ключи: neurogate keys")
     return 0
 
@@ -194,10 +194,15 @@ def restart_service() -> bool:
             return False
         cmd = ["systemctl", "--user", "restart", "neurogate"]
     elif system == "Windows":
-        if subprocess.run(["schtasks", "/Query", "/TN", "neurogate"],
-                          capture_output=True, check=False).returncode != 0:
+        has_task = subprocess.run(["schtasks", "/Query", "/TN", "neurogate"],
+                                  capture_output=True, check=False).returncode == 0
+        # Планировщик закрыт политикой — установщик ставит ярлык в «Автозагрузку».
+        shortcut = Path(os.getenv("APPDATA", "")) / "Microsoft/Windows/Start Menu/Programs/Startup/neurogate.lnk"
+        pythonw = Path.cwd() / ".venv" / "Scripts" / "pythonw.exe"
+        if not has_task and not (shortcut.exists() and pythonw.exists()):
             return False
-        subprocess.run(["schtasks", "/End", "/TN", "neurogate"], capture_output=True, check=False)
+        if has_task:
+            subprocess.run(["schtasks", "/End", "/TN", "neurogate"], capture_output=True, check=False)
         # /End может не дотянуться до python (старые установки шли через cmd + uv run) —
         # добиваем того, кто держит порт.
         port = _gateway()[0].rsplit(":", 1)[1]
@@ -208,6 +213,23 @@ def restart_service() -> bool:
             capture_output=True,
             check=False,
         )
+        if not has_task:
+            base = _gateway()[0]
+            for _ in range(20):  # старый процесс отпускает порт не мгновенно
+                if not _gateway_alive(base):
+                    break
+                time.sleep(0.25)
+            # Как ярлык автозагрузки: pythonw без окна, вывод — в neurogate.log
+            subprocess.Popen([str(pythonw), "-X", "utf8", "-m", "neurogate.background"], cwd=Path.cwd(),
+                             creationflags=getattr(subprocess, "DETACHED_PROCESS", 0)
+                             | getattr(subprocess, "CREATE_NO_WINDOW", 0), close_fds=True)
+            for _ in range(30):
+                if _gateway_alive(base):
+                    print("Сервер перезапущен — новые ключи уже работают.")
+                    return True
+                time.sleep(1)
+            print(f"⚠ Сервер не поднялся за 30 секунд — смотрите {Path.cwd() / 'neurogate.log'}")
+            return True
         cmd = ["schtasks", "/Run", "/TN", "neurogate"]
     else:
         return False
@@ -450,6 +472,13 @@ def _codex_allow_network() -> str | None:
     return "разрешена"
 
 
+def _write_sh(path: Path, text: str) -> None:
+    """sh-обёртка: на macOS/Linux — основная команда, на Windows — для Git Bash."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode("utf-8"))  # \n без \r\n: Git Bash спотыкается о CR
+    path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
 def _gateway_alive(base: str) -> bool:
     try:
         return httpx.get(f"{base}/health", timeout=5).status_code == 200
@@ -481,15 +510,16 @@ def _free_claude_env(base: str, token: str, model: str = "code") -> dict[str, st
 
 def _connect_claude_code(base: str, token: str) -> None:
     env = _free_claude_env(base, token)
+    sh = _bin_dir() / "claude-free"
+    lines = ["#!/bin/sh"] + [f"export {k}='{v}'" for k, v in env.items()] + ['exec claude "$@"']
+    # На Windows sh-версия — для Git Bash (в нём работает Claude Code): .cmd оттуда не находится
+    _write_sh(sh, "\n".join(lines) + "\n")
+    path = sh
     if platform.system() == "Windows":
         path = _bin_dir() / "claude-free.cmd"
-        lines = ["@echo off"] + [f"set {k}={v}" for k, v in env.items()] + ["claude %*"]
+        # setlocal — переменные не остаются в окне cmd, и обычный `claude` потом не уходит в neurogate
+        lines = ["@echo off", "setlocal"] + [f"set {k}={v}" for k, v in env.items()] + ["claude %*"]
         path.write_text("\r\n".join(lines) + "\r\n", encoding="utf-8")
-    else:
-        path = _bin_dir() / "claude-free"
-        lines = ["#!/bin/sh"] + [f"export {k}='{v}'" for k, v in env.items()] + ['exec claude "$@"']
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     print(f"Создана команда: {path}")
     print("Запуск Claude Code на бесплатных моделях:  claude-free")
     print("Обычный `claude` остаётся как был (с вашей подпиской, если она есть).")
@@ -596,9 +626,13 @@ def _connect_opencode(base: str, token: str) -> None:
     cfg["small_model"] = "neurogate/code_fast"
     path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"OpenCode настроен: {path}")
-    authed = _opencode_auth(token)
-    if authed is False:
-        print("⚠ Не удалось подключить neurogate внутри OpenCode автоматически. В OpenCode: список")
+    try:
+        authed = _opencode_auth(token)
+    except (OSError, subprocess.TimeoutExpired):  # зависший или сломанный CLI OpenCode не валит установку
+        authed = False
+    if authed is False or (authed is None and platform.system() == "Windows"):
+        # На Windows нет pty для `opencode auth login` — подключение в окне OpenCode руками
+        print("⚠ Подключите neurogate внутри OpenCode (один раз). В OpenCode: список")
         print(f"  моделей → «+» → «neurogate (бесплатно)» → вставьте ключ {token}")
     elif authed:
         print("Провайдер «neurogate (бесплатно)» подключён в OpenCode.")
@@ -634,13 +668,9 @@ def _connect_codex(base: str, token: str) -> None:
         f'experimental_bearer_token = "{token}"\n',
         encoding="utf-8",
     )
-    shim_name = "codex-free.cmd" if platform.system() == "Windows" else "codex-free"
-    shim = _bin_dir() / shim_name
+    _write_sh(_bin_dir() / "codex-free", '#!/bin/sh\nexec codex --profile free "$@"\n')
     if platform.system() == "Windows":
-        shim.write_text("@echo off\r\ncodex --profile free %*\r\n", encoding="utf-8")
-    else:
-        shim.write_text('#!/bin/sh\nexec codex --profile free "$@"\n', encoding="utf-8")
-        shim.chmod(shim.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        (_bin_dir() / "codex-free.cmd").write_text("@echo off\r\ncodex --profile free %*\r\n", encoding="utf-8")
     print(f"Codex настроен: профиль «free» в {path}")
     print("Запуск Codex на бесплатных моделях:  codex-free   (или codex --profile free)")
     print("Обычный `codex` остаётся как был.")
@@ -712,6 +742,8 @@ ORCHESTRATOR_BLOCK = f"""{ORCHESTRATOR_MARK}
   задачу полностью — какие файлы, что сделать, как проверить, что считается готовым.
 - `neurogate ask "<вопрос>"` — быстрый ответ бесплатной модели без правки файлов
   (объяснить код, предложить варианты, написать текст).
+- Многострочную задачу запиши в файл и передай `neurogate delegate --file <файл>`
+  (так же `ask --file`). На Windows — всегда так: перенос строки обрезает аргумент.
 
 Порядок: большие задачи дроби на шаги по 1–3 файла → `delegate` → посмотри `git diff` и
 запусти тесты → если плохо, поручи исправление с конкретикой (что сломано, где, как надо).
@@ -759,25 +791,52 @@ def _opencode_cli(prefer_app: bool = False) -> str | None:
     return found
 
 
+def _arg_text(parts: list[str], file: str | None) -> str:
+    """Текст задачи: из аргументов или из файла (--file, путь от папки вызова)."""
+    if file:
+        path = _caller_dir() / file
+        if not path.is_file():
+            raise SystemExit(f"✗ Нет файла {path}")
+        return path.read_text(encoding="utf-8-sig").strip()
+    return " ".join(parts).strip()
+
+
+def _batch_safe(exe: str, prompt: str, task_file: Path) -> str:
+    """На Windows .cmd/.bat-шим (npm) запускается через cmd.exe: аргумент обрезается на первом
+    переносе строки, а & | > в тексте становятся командами. Тогда кладём задачу в файл и
+    передаём однострочную ссылку на него."""
+    if os.name != "nt" or not exe.lower().endswith((".cmd", ".bat")):
+        return prompt
+    task_file.write_text(prompt, encoding="utf-8")
+    return (f"Прочитай файл {task_file.name} в текущей папке — там вся задача и правила, — и выполни её. "
+            "Сам этот файл не меняй.")
+
+
 def cmd_delegate(args: argparse.Namespace) -> int:
     base, token = _gateway()
     if not _gateway_alive(base):
         print(_unreachable_hint(base))
         return 2
-    task = " ".join(args.task)
+    task = _arg_text(args.task, args.file)
+    if not task:
+        print("✗ Нет задачи: neurogate delegate \"<задача>\" или --file <файл>")
+        return 2
     workdir = (_caller_dir() / args.dir).resolve()
     # Окружение оркестратора (Claude Code, Codex) не должно утечь исполнителю
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("ANTHROPIC_", "CLAUDECODE", "CLAUDE_CODE_", "CODEX_"))}
     env["PWD"] = str(workdir)  # OpenCode берёт проект из PWD, а не из cwd процесса
-    opencode = None if args.worker == "claude" else _opencode_cli()
+    # Windows: встроенный opencode-cli.exe, а не npm-шим opencode.cmd (см. _batch_safe)
+    opencode = None if args.worker == "claude" else _opencode_cli(prefer_app=os.name == "nt")
     claude = shutil.which("claude") or str(Path.home() / ".local/bin/claude")
+    task_file = workdir / f".neurogate-task-{os.getpid()}.md"  # свой на каждый запуск
     if opencode:
-        cmd = [opencode, "run", "-m", f"neurogate/{args.model}", f"{WORKER_PROMPT}\n\nЗадача:\n{task}"]
+        prompt = _batch_safe(opencode, f"{WORKER_PROMPT}\n\nЗадача:\n{task}", task_file)
+        cmd = [opencode, "run", "-m", f"neurogate/{args.model}", prompt]
         who = "OpenCode"
     elif Path(claude).exists():
         env.update(_free_claude_env(base, token, args.model))
-        cmd = [claude, "-p", task, "--permission-mode", "acceptEdits",
+        cmd = [claude, "-p", _batch_safe(claude, task, task_file), "--permission-mode", "acceptEdits",
                "--allowedTools", "Read", "Edit", "Write", "Glob", "Grep", "Bash",
                "--append-system-prompt", WORKER_PROMPT, "--output-format", "text"]
         who = "Claude Code"
@@ -787,7 +846,11 @@ def cmd_delegate(args: argparse.Namespace) -> int:
         return 2
     print(f"▶ Исполнитель: {who} на бесплатных моделях (neurogate/{args.model}), папка {workdir}",
           flush=True)
-    r = subprocess.run(cmd, cwd=workdir, env=env, check=False)
+    try:
+        r = subprocess.run(cmd, cwd=workdir, env=env, check=False)
+    finally:
+        if os.name == "nt":  # файл пишет только _batch_safe и только на Windows
+            task_file.unlink(missing_ok=True)
     if r.returncode and os.getenv("CODEX_SANDBOX"):
         print("\n⚠ Песочница Codex могла не пустить исполнителя. Выполните `neurogate connect "
               "orchestrator`, откройте приложение OpenCode (нужен его фоновый сервис) и "
@@ -803,11 +866,15 @@ def cmd_delegate(args: argparse.Namespace) -> int:
 
 def cmd_ask(args: argparse.Namespace) -> int:
     base, token = _gateway()
+    question = _arg_text(args.question, args.file)
+    if not question:
+        print("✗ Нет вопроса: neurogate ask \"<вопрос>\" или --file <файл>")
+        return 2
     try:
         r = httpx.post(f"{base}/v1/chat/completions", timeout=300,
                        headers={"Authorization": f"Bearer {token}"},
                        json={"model": args.model,
-                             "messages": [{"role": "user", "content": " ".join(args.question)}]})
+                             "messages": [{"role": "user", "content": question}]})
         data = r.json()
     except httpx.ConnectError:
         print(_unreachable_hint(base))
@@ -860,14 +927,16 @@ def main(argv: list[str]) -> int:
     sub.add_parser("serve", help="запустить сервер (то же, что `neurogate` без аргументов)")
 
     p = sub.add_parser("delegate", help="поручить задачу бесплатному агенту (сам правит файлы)")
-    p.add_argument("task", nargs="+")
+    p.add_argument("task", nargs="*")
+    p.add_argument("--file", help="взять задачу из файла (многострочные задачи, Windows)")
     p.add_argument("--dir", default=".", help="папка проекта (по умолчанию текущая)")
     p.add_argument("--model", default="code", help="модель neurogate: code, code_fast, auto")
     p.add_argument("--worker", choices=["auto", "opencode", "claude"], default="auto")
     p.set_defaults(func=cmd_delegate)
 
     p = sub.add_parser("ask", help="быстрый вопрос бесплатной модели (без правки файлов)")
-    p.add_argument("question", nargs="+")
+    p.add_argument("question", nargs="*")
+    p.add_argument("--file", help="взять вопрос из файла")
     p.add_argument("--model", default="auto")
     p.set_defaults(func=cmd_ask)
 

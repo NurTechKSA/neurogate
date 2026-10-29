@@ -58,6 +58,15 @@ _NO_MODEL_KINDS = _NO_API_KEY_KINDS | {"yandex_translate", "hf_space_audio"}
 log = logging.getLogger(__name__)
 
 
+def _native_bin(name: str) -> str | None:
+    """Полный путь к программе. На Windows npm-шимы .cmd/.bat не годятся: их запускает cmd.exe,
+    аргумент режется на переносе строки, а & | > из текста чата стали бы командами."""
+    path = shutil.which(name)
+    if path and os.name == "nt" and path.lower().endswith((".cmd", ".bat")):
+        return None
+    return path
+
+
 PROVIDER_KIND_DEFAULTS = {
     "gemini": {"base_url": None},
     "openai": {"base_url": "https://api.openai.com/v1"},
@@ -543,7 +552,8 @@ def _build_provider(
         # Auth via the user's Claude.ai subscription (`claude /login`), not API key.
         # Skipped on hosts where the binary isn't on PATH (typical VPS) — no error.
         bin_path = entry.get("bin_path") or os.getenv("NEUROGATE_CLAUDE_CLI_PATH") or "claude"
-        if not shutil.which(bin_path):
+        resolved = _native_bin(bin_path)
+        if not resolved:
             log.warning(
                 "skipping %s: claude binary not found at %s "
                 "(install Claude Code or set NEUROGATE_CLAUDE_CLI_PATH)",
@@ -555,7 +565,7 @@ def _build_provider(
         return ClaudeCLIProvider(
             name=name,
             model=model or "sonnet",
-            bin_path=bin_path,
+            bin_path=resolved,
             timeout=float(entry.get("timeout", 180.0)),
             rpd=rpd,
             rpm=rpm,
@@ -573,7 +583,8 @@ def _build_provider(
         # (403 FreeTierError) but the CLI passes the "from within OpenCode" gate.
         # No API key; skipped on hosts where the binary isn't on PATH — no error.
         bin_path = entry.get("bin_path") or os.getenv("NEUROGATE_OPENCODE_CLI_PATH") or "opencode"
-        if not shutil.which(bin_path):
+        resolved = _native_bin(bin_path)
+        if not resolved:
             log.warning(
                 "skipping %s: opencode binary not found at %s "
                 "(install OpenCode or set NEUROGATE_OPENCODE_CLI_PATH)",
@@ -585,7 +596,7 @@ def _build_provider(
         return OpenCodeCLIProvider(
             name=name,
             model=model or "opencode/big-pickle",
-            bin_path=bin_path,
+            bin_path=resolved,
             timeout=float(entry.get("timeout", 300.0)),
             rpd=rpd,
             rpm=rpm,
