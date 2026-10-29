@@ -19,6 +19,8 @@ dependencies = [
     "gradio-client>=1.0",
     "psutil>=5.9",
     "cryptography>=42",
+    # Windows без системной базы часовых поясов: без tzdata ZoneInfo("America/Los_Angeles") роняет любую команду.
+    "tzdata>=2024.1; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
