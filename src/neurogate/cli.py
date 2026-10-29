@@ -198,7 +198,8 @@ def restart_service() -> bool:
                           capture_output=True, check=False).returncode != 0:
             return False
         subprocess.run(["schtasks", "/End", "/TN", "neurogate"], capture_output=True, check=False)
-        # /End гасит cmd.exe, но python под `uv run` может остаться и держать порт.
+        # /End может не дотянуться до python (старые установки шли через cmd + uv run) —
+        # добиваем того, кто держит порт.
         port = _gateway()[0].rsplit(":", 1)[1]
         subprocess.run(
             ["powershell", "-NoProfile", "-Command",

@@ -72,35 +72,72 @@ if ($env:NEUROGATE_CODE) {
 }
 
 Say "5/6 Автозапуск сервера при входе в Windows"
-$serve = Join-Path $Dir "neurogate-serve.cmd"
-@"
-@echo off
-set PYTHONUTF8=1
-set NEUROGATE_PORT=$Port
-cd /d "$Dir"
-"$Uv" run neurogate serve >> "$Dir\neurogate.log" 2>&1
-"@ | Set-Content -Encoding ASCII $serve
-$action  = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$serve`""
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0 -Hidden
-Register-ScheduledTask -TaskName "neurogate" -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+# pythonw — без окна: раньше задача открывала чёрную консоль cmd, и закрыть её значило убить
+# сервер. Вывод сервера модуль neurogate.background сам пишет в neurogate.log.
+$pyw = Join-Path $Dir ".venv\Scripts\pythonw.exe"
+if (-not (Test-Path $pyw)) { $pyw = Join-Path $Dir ".venv\Scripts\python.exe" }
+$pyArgs = "-X utf8 -m neurogate.background"
+Remove-Item (Join-Path $Dir "neurogate-serve.cmd") -ErrorAction SilentlyContinue
+
+# Прошлый сервер (повторная установка) держит порт — гасим, иначе новый не поднимется.
 Stop-ScheduledTask -TaskName "neurogate" -ErrorAction SilentlyContinue
-Start-ScheduledTask -TaskName "neurogate"
+if ($ours) {
+    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+}
+
+$started = $false
+try {
+    $action  = New-ScheduledTaskAction -Execute $pyw -Argument $pyArgs -WorkingDirectory $Dir
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0
+    Register-ScheduledTask -TaskName "neurogate" -Action $action -Trigger $trigger -Settings $settings -Force -ErrorAction Stop | Out-Null
+    Start-ScheduledTask -TaskName "neurogate" -ErrorAction Stop
+    $started = $true
+} catch {
+    # Планировщик закрыт политикой компьютера — ярлык в «Автозагрузке» прав администратора не требует.
+    Write-Host "Планировщик задач недоступен ($($_.Exception.Message)) — ставлю ярлык в автозагрузку." -ForegroundColor Yellow
+    try {
+        $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path ([Environment]::GetFolderPath("Startup")) "neurogate.lnk"))
+        $lnk.TargetPath = $pyw; $lnk.Arguments = $pyArgs; $lnk.WorkingDirectory = $Dir; $lnk.WindowStyle = 7
+        $lnk.Save()
+    } catch { Write-Host "Автозапуск не включился. После перезагрузки компьютера запускайте: neurogate serve" }
+}
+
+function WaitHealth($sec) {
+    for ($i = 0; $i -lt $sec; $i++) {
+        try { Invoke-RestMethod "http://127.0.0.1:$Port/health" -TimeoutSec 2 | Out-Null; Write-Host ""; return $true }
+        catch { Write-Host -NoNewline "."; Start-Sleep 1 }
+    }
+    Write-Host ""
+    return $false
+}
 
 $ok = $false
-for ($i = 0; $i -lt 40; $i++) {
-    try { Invoke-RestMethod "http://127.0.0.1:$Port/health" -TimeoutSec 2 | Out-Null; $ok = $true; break } catch { Start-Sleep 1 }
+if ($started) { Write-Host -NoNewline "Жду, пока сервер ответит "; $ok = WaitHealth 30 }
+if (-not $ok) {
+    # Задача не стартовала или не поднялась (антивирус, политика) — запускаем сервер напрямую.
+    Write-Host -NoNewline "Запускаю сервер напрямую "
+    Start-Process -FilePath $pyw -ArgumentList $pyArgs -WorkingDirectory $Dir -WindowStyle Hidden
+    $ok = WaitHealth 30
 }
-if ($ok) { Write-Host "Сервер работает: http://127.0.0.1:$Port/dashboard" }
-else { Write-Host "Сервер пока не ответил. Лог: $Dir\neurogate.log" }
+if ($ok) { Write-Host "Сервер работает: http://127.0.0.1:$Port/dashboard" -ForegroundColor Green }
+else {
+    Write-Host "Сервер не ответил. Последние строки лога $Dir\neurogate.log:" -ForegroundColor Yellow
+    Get-Content (Join-Path $Dir "neurogate.log") -Tail 15 -ErrorAction SilentlyContinue
+    Write-Host "Пришлите этот вывод или запустите: neurogate doctor"
+}
 
 Say "6/6 Подключение программ"
+# .cmd читается в кодировке консоли — кириллицу из имени пользователя заменяем на %USERPROFILE%.
+function CmdPath($p) { if ($p.StartsWith($HOME, [StringComparison]::OrdinalIgnoreCase)) { "%USERPROFILE%" + $p.Substring($HOME.Length) } else { $p } }
+$cmdDir = CmdPath $Dir
 @"
 @echo off
 set PYTHONUTF8=1
 set NEUROGATE_CALLER_DIR=%CD%
-cd /d "$Dir"
-if exist "$Dir\.venv\Scripts\neurogate.exe" ("$Dir\.venv\Scripts\neurogate.exe" %*) else ("$Uv" run neurogate %*)
+cd /d "$cmdDir"
+if exist "$cmdDir\.venv\Scripts\neurogate.exe" ("$cmdDir\.venv\Scripts\neurogate.exe" %*) else ("$(CmdPath $Uv)" run neurogate %*)
 "@ | Set-Content -Encoding ASCII (Join-Path $Bin "neurogate.cmd")
 & $Uv run neurogate connect opencode
 & $Uv run neurogate connect claude-code
@@ -120,7 +157,7 @@ Write-Host @"
 ACCESS GRANTED. Всё бесплатно, подписки не нужны.
 
   * Приложение OpenCode (окно, как у Claude/ChatGPT):
-     скачайте https://opencode.ai/download -> откройте -> выберите папку проекта -> пишите задачу.
+     скачайте (ссылка ниже) -> откройте -> выберите папку проекта -> пишите задачу.
      Модель «neurogate/code» уже выбрана.
   Панель и тестовый чат:   http://127.0.0.1:$Port/dashboard
   Claude Code в терминале: claude-free
@@ -134,6 +171,10 @@ ACCESS GRANTED. Всё бесплатно, подписки не нужны.
 "@
 $ocPaths = @("$env:LOCALAPPDATA\Programs\OpenCode\OpenCode.exe", "$env:ProgramFiles\OpenCode\OpenCode.exe")
 if (-not ($ocPaths | Where-Object { Test-Path $_ })) {
-    Write-Host "`nOpenCode ещё не установлен — открываю страницу скачивания…"
-    Start-Process "https://opencode.ai/download"
+    # Прямая ссылка на установщик — ученику не надо искать нужный файл на сайте.
+    $ocArch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "windows-aarch64-nsis" } else { "windows-x64-nsis" }
+    $ocUrl = "https://opencode.ai/download/stable/$ocArch"
+    Write-Host "`nOpenCode ещё не установлен — скачиваю установщик: $ocUrl"
+    Write-Host "Когда скачается — запустите его."
+    Start-Process $ocUrl
 }
