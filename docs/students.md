@@ -63,7 +63,12 @@ neurogate keys             # какие ключи есть и работают 
 
 ### ⭐ OpenCode — приложение, как Claude и ChatGPT (рекомендуем)
 
-1. Скачайте OpenCode: https://opencode.ai/download (Mac, Windows, Linux) — бесплатно.
+1. Скачайте OpenCode (бесплатно):
+   [Mac M1–M5](https://opencode.ai/download/stable/darwin-aarch64-dmg) ·
+   [Mac Intel](https://opencode.ai/download/stable/darwin-x64-dmg) ·
+   [Windows](https://opencode.ai/download/stable/windows-x64-nsis) ·
+   [Windows ARM](https://opencode.ai/download/stable/windows-aarch64-nsis) ·
+   остальное — https://opencode.ai/download
 2. Откройте его и выберите папку проекта.
 3. Пишите задачу в чат: «сделай сайт-визитку», «найди ошибку в main.py». Агент сам создаёт и
    правит файлы, запускает команды.

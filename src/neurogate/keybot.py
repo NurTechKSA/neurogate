@@ -36,6 +36,8 @@ from neurogate.keydrop import DEFAULT_DROP_URL, new_code, seal
 log = logging.getLogger("neurogate.keybot")
 
 REPO_RAW = "https://raw.githubusercontent.com/NurTechKSA/neurogate/main"
+# Прямые ссылки на последнюю версию OpenCode Desktop — ученику не надо искать на сайте
+OPENCODE_DL = "https://opencode.ai/download/stable"
 DROP_TTL = 24 * 3600
 SESSION_TTL = 7 * 24 * 3600
 _PRIORITY_BADGE = {1: "⭐ начните с этого", 2: "➕ дополнительный", 3: "⚠️ с неудобствами"}
@@ -263,8 +265,11 @@ class KeyBot:
             f"<code>neurogate import {code}</code>\n\n"
             "⏳ Код срабатывает один раз и живёт 24 часа. Никому его не пересылайте.\n\n"
             "<b>Дальше:</b>\n"
-            "⭐ Скачайте приложение <a href=\"https://opencode.ai/download\">OpenCode</a>, откройте "
-            "папку проекта и пишите задачу в чат — модель «neurogate/code» уже выбрана.\n"
+            "⭐ Скачайте приложение OpenCode: "
+            f"<a href=\"{OPENCODE_DL}/darwin-aarch64-dmg\">Mac (M1–M5)</a> · "
+            f"<a href=\"{OPENCODE_DL}/darwin-x64-dmg\">Mac Intel</a> · "
+            f"<a href=\"{OPENCODE_DL}/windows-x64-nsis\">Windows</a>. "
+            "Откройте папку проекта и пишите задачу в чат — модель «neurogate/code» уже выбрана.\n"
             "💻 Или в терминале: <code>claude-free</code> — Claude Code на бесплатных моделях.\n\n"
             "🩺 Что-то не так? <code>neurogate doctor</code> — проверит всё и скажет, как починить.\n"
             "📖 Инструкция: https://neurogate.nurtech.dev · ещё ключей — снова /start."

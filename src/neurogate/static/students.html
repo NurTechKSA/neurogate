@@ -305,9 +305,18 @@ footer { font: 400 13px/1.7 var(--f-mono); color: var(--muted); border-top: 1px 
           <h4>Скачай приложение OpenCode</h4>
           <p>Бесплатная программа-агент. Похожа на чат Claude или ChatGPT, но сама пишет файлы в
             твоей папке и запускает команды.</p>
-          <a class="btn" href="https://opencode.ai/download" target="_blank" rel="noopener">↓ Скачать OpenCode</a>
-          <p class="note" data-show="mac">Mac: открой скачанный файл и перетащи OpenCode в «Программы».</p>
-          <p class="note" data-show="win" hidden>Windows: запусти скачанный установщик. Если появится
+          <div class="btns" data-show="mac">
+            <a class="btn" href="https://opencode.ai/download/stable/darwin-aarch64-dmg">↓ Скачать для Mac (M1–M5)</a>
+            <a class="btn ghost" href="https://opencode.ai/download/stable/darwin-x64-dmg">↓ Mac на Intel</a>
+          </div>
+          <div class="btns" data-show="win" hidden>
+            <a class="btn" href="https://opencode.ai/download/stable/windows-x64-nsis">↓ Скачать для Windows</a>
+            <a class="btn ghost" href="https://opencode.ai/download/stable/windows-aarch64-nsis">↓ Windows на ARM</a>
+          </div>
+          <p class="note" data-show="mac">Не знаешь, какой у тебя Mac? Меню Apple → «Об этом Mac»: «Чип Apple M…» —
+            левая кнопка, «Процессор … Intel» — правая. Открой скачанный файл и перетащи OpenCode в «Программы».</p>
+          <p class="note" data-show="win" hidden>Почти у всех обычный Windows — левая кнопка; «ARM» — только
+            у ноутбуков на Snapdragon. Запусти скачанный установщик. Если появится
             синее окно «Windows защитила компьютер» — «Подробнее» → «Выполнить в любом случае».</p>
         </div>
       </article>
