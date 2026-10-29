@@ -395,6 +395,60 @@ def _gateway() -> tuple[str, str]:
     return f"http://{host}:{port}", token
 
 
+def _unreachable_hint(base: str) -> str:
+    """Почему шлюз не отвечает и что делать. В песочнице Codex сеть закрыта, хотя шлюз жив."""
+    if os.getenv("CODEX_SANDBOX_NETWORK_DISABLED"):
+        return (f"✗ Песочница Codex не пускает команду в сеть, поэтому {base} недоступен.\n"
+                "  Разрешите этой команде выход в сеть, когда Codex спросит, или навсегда:\n"
+                "  neurogate connect orchestrator  (включит network_access в ~/.codex/config.toml)\n"
+                "  и перезапустите Codex.")
+    return f"✗ neurogate не отвечает на {base}. Запустите: neurogate restart (или neurogate doctor)"
+
+
+def _codex_sandbox_settings() -> dict[str, str]:
+    """Что нужно песочнице Codex, чтобы `neurogate delegate` из неё работал: сеть до шлюза
+    на 127.0.0.1 и запись в служебные папки OpenCode (лог, база сессий, кэш)."""
+    home = Path.home()
+    roots = [home / ".local/share/opencode", home / ".local/state/opencode", home / ".cache/opencode"]
+    for r in roots:  # песочница не даст их создать: разрешение есть только на сами папки
+        r.mkdir(parents=True, exist_ok=True)
+    return {"network_access": "true",
+            "writable_roots": "[" + ", ".join(json.dumps(str(r)) for r in roots) + "]"}
+
+
+def _codex_allow_network() -> str | None:
+    """Прописать _codex_sandbox_settings в [sandbox_workspace_write] ~/.codex/config.toml.
+    Свои значения человека не переписываем. None — Codex не стоит, трогать нечего."""
+    home = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
+    if not home.exists() and not shutil.which("codex"):
+        return None
+    path = home / "config.toml"
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    want = _codex_sandbox_settings()
+    try:
+        start = next(i for i, ln in enumerate(lines) if ln.strip() == "[sandbox_workspace_write]")
+    except StopIteration:
+        lines += ([""] if lines and lines[-1].strip() else []) + ["[sandbox_workspace_write]"]
+        start = len(lines) - 1
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("[")
+                and not lines[i].lstrip().startswith(("[\"", "['"))), len(lines))
+    have = {m.group(1): i for i in range(start + 1, end)
+            if (m := re.match(r"\s*(\w+)\s*=", lines[i]))}
+    changed = False
+    if "network_access" in have and not re.search(r"=\s*true\b", lines[have["network_access"]]):
+        lines[have["network_access"]] = "network_access = true"
+        changed = True
+    for key, value in want.items():
+        if key not in have:
+            lines.insert(start + 1, f"{key} = {value}")
+            changed = True
+    if not changed:
+        return "уже разрешена"
+    home.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "разрешена"
+
+
 def _gateway_alive(base: str) -> bool:
     try:
         return httpx.get(f"{base}/health", timeout=5).status_code == 200
@@ -418,6 +472,8 @@ def _free_claude_env(base: str, token: str, model: str = "code") -> dict[str, st
         "ANTHROPIC_DEFAULT_SONNET_MODEL": model,
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "code_fast",
         "CLAUDE_CODE_SUBAGENT_MODEL": model,
+        # окно контекста цепочки — иначе Claude Code ругается на незнакомую модель
+        "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "128000",
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     }
 
@@ -609,9 +665,11 @@ def cmd_connect(args: argparse.Namespace) -> int:
         where = "во всех проектах" if args.global_ else "в этой папке"
         print(f"Готово: Codex и Claude Code {where} будут поручать работу бесплатным моделям")
         print("через `neurogate delegate` / `neurogate ask`, а подписку тратить на план и проверку.")
-        print("Codex: разрешите команде выход в локальную сеть (127.0.0.1) — иначе песочница её не")
-        print("пустит. Постоянно: в ~/.codex/config.toml секция [sandbox_workspace_write],")
-        print("network_access = true.")
+        net = _codex_allow_network()
+        if net:
+            print(f"Codex: сеть и папки OpenCode для команд в песочнице — {net} (~/.codex/config.toml,")
+            print("[sandbox_workspace_write]) — иначе delegate не достучится до шлюза на 127.0.0.1.")
+            print("Перезапустите Codex, чтобы он это подхватил.")
     elif tool == "cursor":
         _print_openai_settings(
             "Cursor", base, token,
@@ -703,7 +761,7 @@ def _opencode_cli(prefer_app: bool = False) -> str | None:
 def cmd_delegate(args: argparse.Namespace) -> int:
     base, token = _gateway()
     if not _gateway_alive(base):
-        print(f"✗ neurogate не отвечает на {base}. Запустите: neurogate restart (или neurogate doctor)")
+        print(_unreachable_hint(base))
         return 2
     task = " ".join(args.task)
     workdir = (_caller_dir() / args.dir).resolve()
@@ -729,6 +787,10 @@ def cmd_delegate(args: argparse.Namespace) -> int:
     print(f"▶ Исполнитель: {who} на бесплатных моделях (neurogate/{args.model}), папка {workdir}",
           flush=True)
     r = subprocess.run(cmd, cwd=workdir, env=env, check=False)
+    if r.returncode and os.getenv("CODEX_SANDBOX"):
+        print("\n⚠ Песочница Codex могла не пустить исполнителя. Выполните `neurogate connect "
+              "orchestrator`, откройте приложение OpenCode (нужен его фоновый сервис) и "
+              "перезапустите Codex — или разрешите этой команде запуск без песочницы.")
     in_git = subprocess.run(["git", "-C", str(workdir), "rev-parse"],
                             capture_output=True, check=False).returncode == 0
     if in_git:
@@ -746,6 +808,9 @@ def cmd_ask(args: argparse.Namespace) -> int:
                        json={"model": args.model,
                              "messages": [{"role": "user", "content": " ".join(args.question)}]})
         data = r.json()
+    except httpx.ConnectError:
+        print(_unreachable_hint(base))
+        return 2
     except (httpx.HTTPError, ValueError) as exc:
         print(f"✗ neurogate не отвечает ({type(exc).__name__}). Запустите: neurogate doctor")
         return 2

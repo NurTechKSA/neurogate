@@ -100,7 +100,7 @@ Say "6/6 Подключение программ"
 set PYTHONUTF8=1
 set NEUROGATE_CALLER_DIR=%CD%
 cd /d "$Dir"
-"$Uv" run neurogate %*
+if exist "$Dir\.venv\Scripts\neurogate.exe" ("$Dir\.venv\Scripts\neurogate.exe" %*) else ("$Uv" run neurogate %*)
 "@ | Set-Content -Encoding ASCII (Join-Path $Bin "neurogate.cmd")
 & $Uv run neurogate connect opencode
 & $Uv run neurogate connect claude-code

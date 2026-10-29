@@ -178,7 +178,7 @@ def app(tmp_path, monkeypatch):
 def test_http_health_landing_pickup_and_webhook_secret(app, tmp_path, monkeypatch):
     assert app.get("/health").json() == {"ok": True}
     page = app.get("/")
-    assert page.status_code == 200 and "ДОСТУП" in page.text and "@nurtechneurogatebot" in page.text
+    assert page.status_code == 200 and "Пиши код с ИИ" in page.text and "@nurtechneurogatebot" in page.text
     assert app.get("/p/zzzz").status_code == 404
     assert app.get("/p/abcd1234").status_code == 404
     assert app.post("/tg/wrong", json={}).status_code == 404

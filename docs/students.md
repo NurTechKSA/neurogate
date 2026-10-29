@@ -54,7 +54,8 @@ neurogate setup groq gemini   # только эти
 neurogate keys             # какие ключи есть и работают ли они
 ```
 
-**Минимум для старта — 3 ключа:** Groq, Gemini, OpenRouter (по 2 минуты на каждый).
+**Минимум для старта — 3 ключа:** Gemini, OpenRouter, NVIDIA (по 2 минуты на каждый) — мастер
+начинает именно с них.
 **Хорошо — 10–15 ключей:** плюс NVIDIA, Inception, Gonka, Mistral, Z.ai, Requesty, Cloudflare, Cohere.
 **Максимум:** в каталоге 43 сервиса с ключом и ещё 7 работают без ключа. Чем больше ключей, тем реже вы упрётесь в лимит.
 
@@ -99,6 +100,21 @@ neurogate connect cline      # или continue, cursor
 | `auto` | шлюз сам выберет по запросу |
 | `chat` | вопросы, объяснения, тексты |
 
+### С подпиской Claude или ChatGPT — режим оркестратора
+
+Платная модель в Claude Code или Codex планирует и проверяет, а код пишут бесплатные модели через
+`neurogate delegate`. Лимит подписки уходит только на «мозги». Нужны установленные neurogate и
+приложение OpenCode (оно и есть бесплатный исполнитель).
+
+```bash
+neurogate connect orchestrator --global   # для всех проектов; без --global — только текущая папка
+```
+
+Команда допишет правило в `~/.claude/CLAUDE.md` и `~/.codex/AGENTS.md`, а песочнице Codex разрешит
+связь со шлюзом и запись в папки OpenCode (`[sandbox_workspace_write]` в `~/.codex/config.toml`).
+Перезапустите Claude Code или Codex. Дальше работайте как обычно; можно прямо попросить:
+«код поручи бесплатным моделям через neurogate delegate, сам проверь результат».
+
 ## 4. Панель
 
 `http://127.0.0.1:8765/dashboard` — тестовый чат, история запросов и статус каждого сервиса.
@@ -121,10 +137,10 @@ neurogate connect cline      # или continue, cursor
 
 | Сервис | Что даёт | Лимиты | Что нужно | Где взять ключ |
 |---|---|---|---|---|
-| **Groq** | чат и код, очень быстрые ответы, распознавание речи (Whisper) | 30 запросов/мин, 1–14 тыс. запросов/день на модель | только почта или Google/GitHub | [GROQ_API_KEY](https://console.groq.com/keys) |
 | **Google Gemini (AI Studio)** | сильный код, длинный контекст (1М токенов), картинки на вход, веб-поиск | 10 запросов/мин, 250–1500 запросов/день | Google-аккаунт; из РФ нужен VPN при регистрации | [GEMINI_API_KEY](https://aistudio.google.com/apikey) |
 | **OpenRouter** | десятки бесплатных моделей (:free) — Qwen-Coder, DeepSeek, Nemotron, GLM | 20 запросов/мин, 50 запросов/день (1000 после разового депозита $10) | Google/GitHub, карта не нужна | [OPENROUTER_API_KEY](https://openrouter.ai/keys) |
 | **NVIDIA NIM** | Qwen3-Coder-480B (лучший бесплатный для кода), DeepSeek, Kimi, без суточного потолка | 40 запросов/мин, без лимита в день | только почта | [NVIDIA_API_KEY](https://build.nvidia.com/settings/api-keys) |
+| **Groq** | чат и код, очень быстрые ответы, распознавание речи (Whisper) | 30 запросов/мин, 1–14 тыс. запросов/день на модель | почта или Google/GitHub; из некоторых стран и через VPN вход отклоняется — тогда пропустите | [GROQ_API_KEY](https://console.groq.com/keys) |
 | **Inception (Mercury)** | очень быстрые модели Mercury для кода, контекст 1М токенов | 100 млн токенов разово на аккаунт | только почта, без карты | [INCEPTION_API_KEY](https://platform.inceptionlabs.ai) |
 | **Gonka Broker** | DeepSeek V4 Flash, GLM-5.3 Flash, MiniMax M2.7 | не меньше 1 млн токенов в месяц, сброс 1-го числа | почта; иногда просят телефон | [GONKA_API_KEY](https://app.gonkabroker.com) |
 

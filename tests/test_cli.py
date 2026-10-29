@@ -363,3 +363,80 @@ def test_ask_prints_answer_and_errors(home, monkeypatch, capsys):
     monkeypatch.setattr(httpx, "post", lambda *a, **k: FakeResponse(503, {"detail": "нет ключей"}))
     assert cli.main(["ask", "вопрос"]) == 1
     assert "нет ключей" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- песочница Codex, claude-free
+
+def test_codex_allow_network_no_codex_no_dir(home, monkeypatch):
+    """Если нет ~/.codex и codex не в PATH — возвращает None и ничего не создаёт."""
+    monkeypatch.setattr(cli.shutil, "which", lambda *a: None)
+    assert cli._codex_allow_network() is None
+    assert not (home / ".codex").exists()
+
+
+def test_codex_allow_network_creates_config(home, monkeypatch):
+    """Если ~/.codex есть, а config.toml нет — создаёт config.toml с [sandbox_workspace_write]."""
+    monkeypatch.setattr(cli.shutil, "which", lambda *a: "/usr/bin/codex")
+    codex_dir = home / ".codex"
+    codex_dir.mkdir()
+    result = cli._codex_allow_network()
+    assert result == "разрешена"
+    cfg = codex_dir / "config.toml"
+    assert cfg.exists()
+    text = cfg.read_text(encoding="utf-8")
+    assert "[sandbox_workspace_write]" in text
+    assert "network_access = true" in text
+    assert "writable_roots" in text
+    assert str(home / ".local/share/opencode") in text
+    mtime = cfg.stat().st_mtime
+    result2 = cli._codex_allow_network()
+    assert result2 == "уже разрешена"
+    assert cfg.stat().st_mtime == mtime
+
+
+def test_codex_allow_network_updates_existing_section_preserves_other(home, monkeypatch):
+    """Если config.toml уже есть с model и [sandbox_workspace_write] (network_access=false)
+    и следующей секцией [mcp_servers.x] — обновляет network_access=true внутри своей секции,
+    сохраняет model и [mcp_servers.x], network_access встречается один раз."""
+    monkeypatch.setattr(cli.shutil, "which", lambda *a: "/usr/bin/codex")
+    codex_dir = home / ".codex"
+    codex_dir.mkdir()
+    cfg = codex_dir / "config.toml"
+    cfg.write_text(
+        'model = "gpt"\n\n'
+        "[sandbox_workspace_write]\n"
+        "network_access = false\n"
+        "writable_roots = []\n\n"
+        "[mcp_servers.x]\n"
+        'command = "y"\n',
+        encoding="utf-8",
+    )
+    result = cli._codex_allow_network()
+    assert result == "разрешена"
+    text = cfg.read_text(encoding="utf-8")
+    assert "network_access = true" in text
+    assert text.count("network_access") == 1
+    assert 'model = "gpt"' in text
+    assert "[mcp_servers.x]" in text
+    assert 'command = "y"' in text
+
+
+def test_unreachable_hint_without_codex_sandbox(monkeypatch):
+    """Без CODEX_SANDBOX_NETWORK_DISABLED подсказка содержит 'neurogate restart'."""
+    for var in ("CODEX_SANDBOX_NETWORK_DISABLED", "CODEX_SANDBOX"):
+        monkeypatch.delenv(var, raising=False)
+    hint = cli._unreachable_hint("http://127.0.0.1:1")
+    assert "neurogate restart" in hint
+
+
+def test_unreachable_hint_with_codex_sandbox_disabled(monkeypatch):
+    """С CODEX_SANDBOX_NETWORK_DISABLED=1 подсказка содержит 'Песочница Codex'."""
+    monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
+    hint = cli._unreachable_hint("http://127.0.0.1:1")
+    assert "Песочница Codex" in hint
+
+
+def test_free_claude_env_has_max_context_tokens():
+    """_free_claude_env возвращает CLAUDE_CODE_MAX_CONTEXT_TOKENS=128000."""
+    env = cli._free_claude_env("http://x", "t")
+    assert env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] == "128000"

@@ -153,10 +153,13 @@ if ! command -v claude >/dev/null 2>&1; then
   echo "Claude Code не найден. Поставить: curl -fsSL https://claude.ai/install.sh | bash"
 fi
 
-# Короткая команда `neurogate` из любой папки.
+# Короткая команда `neurogate` из любой папки. Сразу из .venv, без `uv run`: в песочнице
+# Codex uv падает — ему некуда писать кэш (~/.cache/uv).
 cat > "$HOME/.local/bin/neurogate" <<EOF
 #!/bin/sh
-NEUROGATE_CALLER_DIR="\$PWD" && export NEUROGATE_CALLER_DIR && cd "$DIR" && exec "$UV" run neurogate "\$@"
+NEUROGATE_CALLER_DIR="\$PWD" && export NEUROGATE_CALLER_DIR && cd "$DIR" || exit 1
+[ -x "$DIR/.venv/bin/neurogate" ] && exec "$DIR/.venv/bin/neurogate" "\$@"
+exec "$UV" run neurogate "\$@"
 EOF
 chmod +x "$HOME/.local/bin/neurogate"
 
