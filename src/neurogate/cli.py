@@ -285,10 +285,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     got = [s["name"] for s in services if env.get(s["env"]) or os.getenv(s["env"])]
     if not got:
         line(False, "Ключей нет — бесплатные модели neurogate не работают",
-             "neurogate setup  (или собери ключи в боте @nurtechneurogatebot)")
+             f"neurogate add — откроет страницу {base}/keys, ключ вставляется туда")
     elif len(got) < 3:
         line(None, f"Ключей: {len(got)} — мало, лимиты будут кончаться быстро",
-             "neurogate setup — добавь ещё 2–3 (Gemini, OpenRouter, Groq)")
+             f"neurogate add — добавь ещё 2–3 на странице {base}/keys")
     else:
         line(True, f"Ключей: {len(got)} ({', '.join(got[:5])}{'…' if len(got) > 5 else ''})")
 
@@ -307,7 +307,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 line(True, f"Модель ответила: {data.get('model')}")
             else:
                 line(False, "Модели не ответили: " + str(data.get("detail") or data.get("error"))[:160],
-                     "neurogate keys — проверь ключи; neurogate setup — добавь новые")
+                     f"neurogate keys — проверь ключи; neurogate add — добавь новые ({base}/keys)")
         except (httpx.HTTPError, ValueError) as exc:
             line(False, f"Запрос к модели упал ({type(exc).__name__})", "neurogate restart")
 
@@ -402,7 +402,20 @@ def cmd_keys(args: argparse.Namespace) -> int:
         mark = {True: "✓", False: "✗", None: "•"}[ok]
         print(f"  {mark}  {s['name']:<30} {msg}")
     print(f"\nБез ключа работают: {', '.join(catalog.get('keyless', []))}.")
-    print(f"Ключей вписано: {have} из {len(catalog['services'])}. Добавить: neurogate setup")
+    print(f"Ключей вписано: {have} из {len(catalog['services'])}. "
+          f"Добавить без терминала: neurogate add (страница {_gateway()[0]}/keys)")
+    return 0
+
+
+def cmd_add(args: argparse.Namespace) -> int:
+    """Страница «добавить ключ» в браузере: кнопка «Получить ключ», поле — и ключ сразу работает."""
+    base = _gateway()[0]
+    url = f"{base}/keys"
+    if not _gateway_alive(base):
+        print(f"neurogate не отвечает на {base}. Запустите: neurogate restart — и снова neurogate add")
+        return 1
+    print(f"Открываю {url} — нажмите «Получить ключ», вставьте ключ, «Подключить».")
+    webbrowser.open(url)
     return 0
 
 
@@ -990,6 +1003,9 @@ def main(argv: list[str]) -> int:
     p = sub.add_parser("bot", help="запустить Telegram-бот выдачи ключей (для преподавателя)")
     p.add_argument("rest", nargs=argparse.REMAINDER)
     p.set_defaults(func=cmd_bot)
+
+    p = sub.add_parser("add", help="добавить ключ в браузере (страница /keys, без терминала)")
+    p.set_defaults(func=cmd_add)
 
     p = sub.add_parser("doctor", help="проверить всю систему и подсказать, что починить")
     p.set_defaults(func=cmd_doctor)

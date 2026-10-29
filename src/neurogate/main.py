@@ -184,6 +184,38 @@ def _print_startup_banner(cfg: ChainConfig, host: str, port: int) -> None:
             print(bar)
 
 
+def _keys_url(request: Request | None) -> str:
+    """Страница «добавить ключ» на этом же сервере — ссылку видно прямо в чате клиента."""
+    if request is None:
+        return f"http://127.0.0.1:{os.getenv('NEUROGATE_PORT', '8765')}/keys"
+    return str(request.base_url).rstrip("/") + "/keys"
+
+
+def _exhausted_hint(request: Request | None = None) -> str:
+    return (
+        "⚠️ Бесплатные лимиты кончились (или ключ перестал работать).\n\n"
+        f"Добавь ещё бесплатный ключ — 2 минуты, без терминала: открой {_keys_url(request)}\n\n"
+        "Или подожди: лимиты обновляются, обычно за час-сутки."
+    )
+
+
+def _exhausted_text(chain_name: str, exc: BaseException, request: Request | None = None) -> str:
+    """Все модели цепочки отказали — обычно кончились бесплатные лимиты. Первой строкой —
+    что делать человеку (её показывает OpenCode/Claude Code), техника — в конце."""
+    return f"{_exhausted_hint(request)}\n\n[neurogate: all providers failed on chain {chain_name}: {exc!r}]"
+
+
+def _hint_chunks(model: str, request: Request | None) -> list[bytes]:
+    """Подсказка обычным ответом модели. Ошибку посреди стрима OpenCode молча повторяет по
+    кругу — человек видит только «думает». Текст ответа он покажет и остановится."""
+    base = {"id": "neurogate-limits", "object": "chat.completion.chunk", "created": int(time.time()), "model": model}
+    text = {**base, "choices": [{"index": 0, "delta": {"role": "assistant", "content": _exhausted_hint(request)},
+                                 "finish_reason": None}]}
+    stop = {**base, "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}
+    return [f"data: {json.dumps(text, ensure_ascii=False)}\n\n".encode(),
+            f"data: {json.dumps(stop)}\n\n".encode()]
+
+
 def create_app() -> FastAPI:
     _configure_logging()
     config_path = Path(os.getenv("NEUROGATE_CONFIG", "config.yaml"))
@@ -293,10 +325,8 @@ def create_app() -> FastAPI:
             status_code=503,
             detail=(
                 f"Нет ни одного ключа для чата (цепочка '{cfg.dropped_default}' пустая). "
-                "Добавьте хотя бы один бесплатный ключ: выполните `neurogate setup` "
-                "и перезапустите сервер. Быстрее всего — GROQ_API_KEY "
-                "(https://console.groq.com/keys) или GEMINI_API_KEY "
-                "(https://aistudio.google.com/apikey)."
+                "Добавь хотя бы один бесплатный ключ — 2 минуты, без терминала: "
+                f"открой {_keys_url(None)} ."
             ),
         )
 
@@ -371,6 +401,89 @@ def create_app() -> FastAPI:
     @app.get("/dashboard")
     async def dashboard() -> FileResponse:
         return FileResponse(_STATIC_DIR / "dashboard.html", media_type="text/html")
+
+    @app.get("/keys")
+    async def keys_page() -> FileResponse:
+        return FileResponse(_STATIC_DIR / "keys.html", media_type="text/html")
+
+    def _local_same_origin(request: Request) -> None:
+        """Ключи меняет только сам человек со своей страницы: запрос с этого компьютера и не
+        с чужого сайта (браузер шлёт Sec-Fetch-Site/Origin, а JSON-POST требует preflight)."""
+        host = request.client.host if request.client else ""
+        if host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+            raise HTTPException(status_code=403, detail="только с этого компьютера")
+        site = request.headers.get("sec-fetch-site")
+        origin = request.headers.get("origin")
+        if site not in (None, "same-origin", "none") or (
+            origin and origin.rstrip("/") != str(request.base_url).rstrip("/")
+        ):
+            raise HTTPException(status_code=403, detail="только со страницы neurogate")
+
+    def _catalog_state() -> list[dict]:
+        from neurogate.cli import load_catalog, ordered_services
+
+        catalog = load_catalog()
+        quick = catalog.get("quick", [])
+        return [
+            {"id": s["id"], "name": s["name"], "gives": s.get("gives", ""), "limits": s.get("limits", ""),
+             "needs": s.get("needs", ""), "key_url": s.get("key_url", ""), "steps": s.get("steps", []),
+             "extra": [e.get("prompt", e["env"]) for e in s.get("extra_env", [])],
+             "has_key": bool(os.environ.get(s["env"])), "quick": s["id"] in quick}
+            for s in ordered_services(catalog)
+        ]
+
+    def _reload_keys() -> None:
+        """Пересобрать провайдеров с новыми ключами без перезапуска — как редактор цепочек."""
+        new_cfg = load_config(config_path)
+        new_pbn = {p.name: p for p in new_cfg.all_providers}
+        router.update_state(new_cfg.chains, new_cfg.default, new_pbn)
+        cfg.chains = new_cfg.chains
+        cfg.default = new_cfg.default
+        cfg.all_providers = new_cfg.all_providers
+        cfg.dropped_default = new_cfg.dropped_default
+        providers_by_name.clear()
+        providers_by_name.update(new_pbn)
+        app.state.providers = new_cfg.all_providers
+
+    @app.get("/keys/list")
+    async def keys_list(request: Request) -> dict:
+        _local_same_origin(request)
+        services = _catalog_state()
+        return {"services": services, "have": sum(1 for s in services if s["has_key"])}
+
+    @app.post("/keys/add")
+    async def keys_add(request: Request) -> dict:
+        _local_same_origin(request)
+        from neurogate.cli import check_key, load_catalog
+        from neurogate.envfile import default_env_path, set_env_value
+
+        try:
+            body = await request.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="нужен JSON") from exc
+        svc = next((s for s in load_catalog()["services"] if s["id"] == body.get("id")), None)
+        key = str(body.get("key") or "").strip()
+        if not svc or not key:
+            raise HTTPException(status_code=400, detail="нет сервиса или ключа")
+        ok, why = await asyncio.to_thread(check_key, svc, key)
+        if ok is False:
+            return {"ok": False, "message": f"{svc['name']}: {why}. Скопируй ключ целиком и вставь ещё раз."}
+        values = {svc["env"]: key}
+        for spec, value in zip(svc.get("extra_env", []), body.get("extra") or []):
+            if str(value).strip():
+                values[spec["env"]] = str(value).strip()
+        env_path = default_env_path()
+        for k, v in values.items():
+            set_env_value(env_path, k, v)
+            os.environ[k] = v
+        try:
+            await asyncio.to_thread(_reload_keys)
+        except Exception as exc:  # ключ уже в .env — подхватится при следующем запуске
+            log.exception("reload after key add failed")
+            return {"ok": True, "message": f"Ключ сохранён, но сразу не подхватился ({exc!r}). "
+                                           "Перезапусти neurogate: neurogate restart"}
+        note = "" if ok else " (проверить сразу не получилось — сохранил как есть)"
+        return {"ok": True, "message": f"{svc['name']} подключён{note}. Возвращайся к работе."}
 
     @app.get("/static/made-in-basalt.svg")
     async def made_in_basalt() -> FileResponse:
@@ -1253,15 +1366,19 @@ def create_app() -> FastAPI:
                         error=exc,
                     )
                     logged = True
-                    err_payload = json.dumps(
-                        {
-                            "error": {
-                                "message": f"all providers failed on chain {chain_name}: {exc!r}",
-                                "type": "upstream_exhausted",
+                    if first:
+                        for c in _hint_chunks(req.model or chain_name, request):
+                            yield c
+                    else:
+                        err_payload = json.dumps(
+                            {
+                                "error": {
+                                    "message": _exhausted_text(chain_name, exc, request),
+                                    "type": "upstream_exhausted",
+                                }
                             }
-                        }
-                    )
-                    yield f"data: {err_payload}\n\n".encode()
+                        )
+                        yield f"data: {err_payload}\n\n".encode()
                     yield b"data: [DONE]\n\n"
                 finally:
                     if not logged:
@@ -1310,7 +1427,7 @@ def create_app() -> FastAPI:
                 status_code=502,
                 content={
                     "error": {
-                        "message": f"all providers failed on chain {chain_name}: {exc!r}",
+                        "message": _exhausted_text(chain_name, exc, request),
                         "type": "upstream_exhausted",
                     }
                 },
@@ -2456,7 +2573,7 @@ def create_app() -> FastAPI:
             _log_call(endpoint="responses", outcome="error", client_model=model,
                       chain_requested=chain_name, started=started, error=exc)
             err = {"code": "upstream_exhausted",
-                   "message": f"all providers failed on chain {chain_name}: {exc!r}"}
+                   "message": _exhausted_text(chain_name, exc, request)}
             if body.get("stream"):
                 failed = {**rc.response_object(resp_id, model or chain_name, [], {}, "failed"),
                           "error": err}
@@ -2505,20 +2622,33 @@ def create_app() -> FastAPI:
                 used_chain: str | None = None
                 logged = False
 
+                failed: list[BaseException] = []
+
                 async def openai_byte_stream():
                     nonlocal used_provider, used_chain
-                    async for chunk, _p, _c in request.app.state.router.chat_stream(
-                        messages=openai_args["messages"],
-                        temperature=openai_args["temperature"],
-                        max_tokens=openai_args["max_tokens"],
-                        tools=openai_args["tools"],
-                        tool_choice=openai_args["tool_choice"],
-                        chain_name=chain_name,
-                        exclude=exclude_models,
-                    ):
-                        used_provider = _p
-                        used_chain = _c
-                        yield chunk
+                    sent = False
+                    try:
+                        async for chunk, _p, _c in request.app.state.router.chat_stream(
+                            messages=openai_args["messages"],
+                            temperature=openai_args["temperature"],
+                            max_tokens=openai_args["max_tokens"],
+                            tools=openai_args["tools"],
+                            tool_choice=openai_args["tool_choice"],
+                            chain_name=chain_name,
+                            exclude=exclude_models,
+                        ):
+                            used_provider = _p
+                            used_chain = _c
+                            sent = True
+                            yield chunk
+                    except Exception as exc:
+                        if sent:
+                            raise
+                        log.exception("all providers failed on /v1/messages (chain=%s, stream)", chain_name)
+                        failed.append(exc)
+                        for c in _hint_chunks(req.model, request):
+                            yield c
+                        yield b"data: [DONE]\n\n"
 
                 try:
                     async for ev in translate_stream(
@@ -2527,7 +2657,8 @@ def create_app() -> FastAPI:
                         yield ev
                     _log_call(
                         endpoint="messages",
-                        outcome="success",
+                        outcome="error" if failed else "success",
+                        error=failed[0] if failed else None,
                         client_model=req.model,
                         chain_requested=chain_name,
                         chain_resolved=used_chain,
@@ -2557,7 +2688,7 @@ def create_app() -> FastAPI:
                             "type": "error",
                             "error": {
                                 "type": "upstream_exhausted",
-                                "message": f"all providers failed on chain {chain_name}: {exc!r}",
+                                "message": _exhausted_text(chain_name, exc, request),
                             },
                         }
                     )
@@ -2608,7 +2739,7 @@ def create_app() -> FastAPI:
                     "type": "error",
                     "error": {
                         "type": "upstream_exhausted",
-                        "message": f"all providers failed on chain {chain_name}: {exc!r}",
+                        "message": _exhausted_text(chain_name, exc, request),
                     },
                 },
             )

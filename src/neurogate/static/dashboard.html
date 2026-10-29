@@ -53,6 +53,11 @@
     font-size: 13px; cursor: pointer;
   }
   header button:hover { background: #242b38; }
+  header .add-key {
+    background: #1f6f43; color: #fff; text-decoration: none; font-weight: 600;
+    padding: 6px 12px; border-radius: 6px; font-size: 13px;
+  }
+  header .add-key:hover { background: #26864f; }
   header .status {
     color: var(--muted); font-size: 12px; font-family: var(--mono);
   }
@@ -946,6 +951,7 @@
     <span class="default" title="цепочка, которая используется по умолчанию — когда клиент прислал model:auto или неизвестное значение">default-цепочка: <b id="default-chain">—</b></span>
     <span class="spacer"></span>
     <span class="status" id="status">загрузка…</span>
+    <a class="add-key" href="/keys" title="добавить бесплатный ключ — без терминала">+ добавить ключ</a>
     <button id="refresh">обновить</button>
     <button id="logout" style="display:none">выйти</button>
     <a class="basalt-badge" href="https://basaltcode.com" target="_blank" rel="noopener" title="Made in Basalt">

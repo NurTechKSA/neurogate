@@ -257,7 +257,7 @@ class KeyBot:
             f"{self._install_steps(state.get('os'), code)}\n\n"
             "<i>Команда одноразовая и работает 24 часа — никому не пересылай.</i>\n"
             "Что-то не так — набери в терминале <code>neurogate doctor</code>.\n"
-            "Станет мало лимитов — снова /start: новый ключ добавится к старым.\n\n"
+            "Кончатся лимиты — OpenCode сам покажет ссылку, где за минуту добавить ключ.\n\n"
             "🙏 neurogate создал Мансур (Basalt Code) — его канал @snglrai"
         )
         await self.tg.send(chat_id, text)

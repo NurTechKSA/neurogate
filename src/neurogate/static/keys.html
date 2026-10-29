@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>neurogate — добавить ключ</title>
+<style>
+/* Тот же мир, что у neurogate.nurtech.dev: тёмный терминал, зелёный — только для действий. */
+:root {
+  --void: #050807; --panel: #0a110e; --panel-2: #0e1813; --green: #3dff8c; --green-dim: #27a35d;
+  --ink: #dcefe4; --muted: #8fae9c; --line: #19301f; --line-2: #24452e; --bad: #ff7a6b;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--void); color: var(--ink); font: 400 16px/1.6 var(--body); padding: 0 16px 56px;
+  background-image: linear-gradient(rgba(61,255,140,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(61,255,140,.035) 1px, transparent 1px);
+  background-size: 32px 32px; }
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; padding-top: 32px; }
+h1 { margin: 0; font: 700 clamp(28px, 6vw, 40px)/1.15 var(--mono); letter-spacing: -.03em; }
+h1 em { font-style: normal; color: var(--green); }
+.lede { margin: 0; color: var(--muted); font-size: 17px; }
+.lede b { color: var(--ink); }
+.card { background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 18px 18px 16px; display: grid; gap: 10px; }
+.card.done { border-color: var(--green-dim); }
+.card h2 { margin: 0; font: 700 19px/1.3 var(--mono); }
+.card .meta { margin: 0; font-size: 14.5px; color: var(--muted); }
+.card ol { margin: 0; padding-left: 20px; }
+.card li { margin-bottom: 3px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; font: 700 15px/1 var(--mono); text-decoration: none;
+  color: var(--void); background: var(--green); border: 0; border-radius: 8px; padding: 14px 18px; min-height: 46px; cursor: pointer; justify-self: start; }
+.btn:hover { background: #7dffb2; }
+.btn.ghost { color: var(--green); background: transparent; border: 1px solid var(--green-dim); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+input { flex: 1 1 260px; min-width: 0; font: 500 15px/1.4 var(--mono); color: var(--ink); background: #030504;
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 14px; }
+input:focus { outline: 2px solid var(--green); outline-offset: 1px; }
+.msg { margin: 0; font-size: 15px; }
+.msg.ok { color: var(--green); } .msg.bad { color: var(--bad); }
+details { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+summary { cursor: pointer; padding: 14px 18px; font: 600 16px/1.4 var(--body); }
+details > .list { display: grid; gap: 12px; padding: 0 12px 12px; }
+.have { font-size: 14.5px; color: var(--muted); margin: 0; }
+@media (max-width: 520px) { .btn { justify-self: stretch; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Добавь <em>бесплатный</em> ключ</h1>
+  <p class="lede" id="lede">Каждый ключ — это ещё один бесплатный лимит. Нажми «Получить ключ», скопируй его на сайте
+    сервиса, вернись сюда и вставь. Терминал не нужен — ключ сразу заработает.</p>
+  <div id="top" class="list" style="display:grid;gap:12px"></div>
+  <details id="more-box" hidden><summary id="more-sum">Ещё сервисы</summary><div class="list" id="more"></div></details>
+  <p class="have" id="have"></p>
+</div>
+<script>
+(function () {
+  var esc = function (t) { var d = document.createElement("div"); d.textContent = t == null ? "" : String(t); return d.innerHTML; };
+  function card(s) {
+    var el = document.createElement("article");
+    el.className = "card";
+    var extra = (s.extra || []).map(function (p, i) {
+      return '<input data-extra="' + i + '" placeholder="' + esc(p) + '" autocomplete="off" spellcheck="false">';
+    }).join("");
+    el.innerHTML =
+      "<h2>" + esc(s.name) + "</h2>" +
+      '<p class="meta">' + esc(s.gives) + (s.needs ? " · нужно: " + esc(s.needs) : "") + "</p>" +
+      (s.steps && s.steps.length ? "<ol>" + s.steps.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ol>" : "") +
+      '<a class="btn" target="_blank" rel="noopener" href="' + esc(s.key_url) + '">🔑 Получить ключ</a>' +
+      '<div class="row"><input data-key placeholder="Вставь ключ сюда" autocomplete="off" spellcheck="false">' + extra +
+      '<button class="btn ghost" type="button">Подключить</button></div>' +
+      '<p class="msg" aria-live="polite"></p>';
+    var btn = el.querySelector("button"), msg = el.querySelector(".msg");
+    btn.addEventListener("click", function () {
+      var key = el.querySelector("[data-key]").value.trim();
+      if (!key) { msg.className = "msg bad"; msg.textContent = "Сначала вставь ключ в поле."; return; }
+      var extras = Array.prototype.map.call(el.querySelectorAll("[data-extra]"), function (i) { return i.value.trim(); });
+      btn.disabled = true; msg.className = "msg"; msg.textContent = "Проверяю ключ…";
+      fetch("/keys/add", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: s.id, key: key, extra: extras }) })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          msg.className = "msg " + (r.ok ? "ok" : "bad");
+          msg.textContent = (r.ok ? "✅ " : "❌ ") + (r.message || r.detail || "");
+          if (r.ok) { el.classList.add("done"); el.querySelector(".row").remove(); load(true); } else { btn.disabled = false; }
+        })
+        .catch(function () { btn.disabled = false; msg.className = "msg bad"; msg.textContent = "neurogate не отвечает. Запусти его: neurogate restart"; });
+    });
+    return el;
+  }
+  function load(keepCards) {
+    fetch("/keys/list").then(function (r) { return r.json(); }).then(function (d) {
+      var missing = d.services.filter(function (s) { return !s.has_key; });
+      var got = d.services.filter(function (s) { return s.has_key; });
+      document.getElementById("have").textContent = got.length
+        ? "Уже подключено (" + got.length + "): " + got.map(function (s) { return s.name; }).join(", ") + "."
+        : "Пока ни одного ключа.";
+      if (keepCards) return;
+      var top = document.getElementById("top"), more = document.getElementById("more");
+      missing.slice(0, 3).forEach(function (s) { top.appendChild(card(s)); });
+      var rest = missing.slice(3);
+      if (rest.length) {
+        document.getElementById("more-box").hidden = false;
+        document.getElementById("more-sum").textContent = "Ещё сервисы (" + rest.length + ")";
+        rest.forEach(function (s) { more.appendChild(card(s)); });
+      }
+      if (!missing.length) document.getElementById("lede").textContent = "Все сервисы из списка уже подключены — больше ключей не бывает.";
+    }).catch(function () {
+      document.getElementById("lede").textContent = "neurogate не отвечает. Открой терминал и набери: neurogate restart — потом обнови страницу.";
+    });
+  }
+  load(false);
+})();
+</script>
+</body>
+</html>

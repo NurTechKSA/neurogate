@@ -205,7 +205,7 @@ ACCESS GRANTED. Всё бесплатно, подписки не нужны.
   Панель и тестовый чат:   http://127.0.0.1:$Port/dashboard
   Claude Code в терминале: claude-free
   Codex бесплатно:         codex-free
-  Добавить ещё ключи:      neurogate setup
+  Добавить ещё ключи:      http://127.0.0.1:$Port/keys   (или: neurogate add)
   Проверить ключи:         neurogate keys
   VS Code (Cline и др.):   neurogate connect cline   (или continue, cursor)
   Перезапустить сервер:    neurogate restart   (setup делает это сам)

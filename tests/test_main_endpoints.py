@@ -73,7 +73,7 @@ def test_no_llm_keys_gives_clear_503_everywhere(tmp_path, monkeypatch):
     ]:
         r = c.post(path, json=body)
         assert r.status_code == 503, path
-        assert "neurogate setup" in r.json()["detail"], path
+        assert "/keys" in r.json()["detail"], path
 
 
 def test_responses_non_stream_with_custom_tool(tmp_path, monkeypatch, fake_router):
@@ -131,3 +131,64 @@ def test_models_lists_chains(tmp_path, monkeypatch):
     c = _client(tmp_path, monkeypatch, WITH_KEY)
     ids = [m["id"] for m in c.get("/v1/models").json()["data"]]
     assert {"auto", "chat", "code"} <= set(ids)
+
+
+def test_exhausted_chain_tells_where_to_add_key(tmp_path, monkeypatch):
+    async def boom(self, **kw):
+        raise RuntimeError("429 quota")
+
+    monkeypatch.setattr(LLMRouter, "chat", boom)
+    c = _client(tmp_path, monkeypatch, WITH_KEY)
+    r = c.post("/v1/chat/completions", json={"model": "code", "messages": [{"role": "user", "content": "x"}]})
+    msg = r.json()["error"]["message"]
+    assert "Бесплатные лимиты кончились" in msg and "http://testserver/keys" in msg
+
+    async def boom_stream(self, **kw):
+        raise RuntimeError("429 quota")
+        yield  # pragma: no cover — делает функцию генератором
+
+    monkeypatch.setattr(LLMRouter, "chat_stream", boom_stream)
+    # Стрим: подсказка приходит обычным текстом ответа, а не ошибкой (её OpenCode повторяет по кругу)
+    with c.stream("POST", "/v1/chat/completions", json={"model": "code", "stream": True,
+                                                          "messages": [{"role": "user", "content": "x"}]}) as s:
+        body = "".join(s.iter_text())
+    assert '"content": "⚠️ Бесплатные лимиты кончились' in body and '"finish_reason": "stop"' in body
+    assert '"error"' not in body and body.rstrip().endswith("data: [DONE]")
+    with c.stream("POST", "/v1/messages", json={"model": "claude", "max_tokens": 10, "stream": True,
+                                                 "messages": [{"role": "user", "content": "x"}]}) as s:
+        body = "".join(s.iter_text())
+    assert "testserver/keys" in body and "text_delta" in body and "event: error" not in body
+
+
+def test_keys_page_list_add_and_hot_reload(tmp_path, monkeypatch):
+    from neurogate import cli
+
+    env = tmp_path / ".env"
+    env.write_text("", encoding="utf-8")
+    monkeypatch.setenv("NEUROGATE_ENV_FILE", str(env))
+    monkeypatch.delenv("GROQ_API_KEY_MISSING_FOR_TESTS", raising=False)
+    monkeypatch.setattr(cli, "check_key", lambda s, k: (k.startswith("ok"), "сервис отверг ключ"))
+    c = _client(tmp_path, monkeypatch, NO_KEYS)
+    assert "Добавь" in c.get("/keys").text
+    services = c.get("/keys/list").json()["services"]
+    assert services[0]["quick"] and services[0]["key_url"]
+    bad = c.post("/keys/add", json={"id": "groq", "key": "bad"}).json()
+    assert bad["ok"] is False and "отверг" in bad["message"]
+    # NO_KEYS берёт ключ groq из GROQ_API_KEY_MISSING_FOR_TESTS — подменим env сервиса каталога
+    monkeypatch.setattr(cli, "load_catalog", lambda: {"quick": [], "services": [
+        {"id": "groq", "name": "Groq", "env": "GROQ_API_KEY_MISSING_FOR_TESTS", "priority": 1}]})
+    assert c.post("/v1/chat/completions", json={"model": "auto", "messages": [
+        {"role": "user", "content": "x"}]}).status_code == 503
+    ok = c.post("/keys/add", json={"id": "groq", "key": "ok-123"}).json()
+    assert ok["ok"] is True and "подключён" in ok["message"]
+    assert "GROQ_API_KEY_MISSING_FOR_TESTS=ok-123" in env.read_text(encoding="utf-8")
+    assert c.get("/keys/list").json()["have"] == 1
+    # ключ подхватился без перезапуска: цепочка chat больше не пустая
+    assert "fake:needs-key" in c.get("/v1/health").json()["chains"]["chat"]
+
+
+def test_keys_add_refuses_other_sites(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch, WITH_KEY)
+    r = c.post("/keys/add", json={"id": "groq", "key": "x"}, headers={"Origin": "https://evil.example",
+                                                                      "Sec-Fetch-Site": "cross-site"})
+    assert r.status_code == 403
