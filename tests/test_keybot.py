@@ -61,35 +61,32 @@ def buttons(tg):
     return [b.get("callback_data") or b.get("url") for row in (tg.sent[-1][1] or []) for b in row]
 
 
-def test_start_shows_quick_mode_and_go_button(bot):
+def test_start_asks_computer(bot):
     b, tg = bot
     Driver(b).msg("/start")
-    assert "Быстрый старт — 3 ключа" in last(tg)
-    assert buttons(tg) == ["go"]
+    assert "3 бесплатных ключа" in last(tg) and "Какой у тебя компьютер" in last(tg)
+    assert buttons(tg) == ["os:mac", "os:win"]
 
 
-def test_quick_flow_checkpoint_more_and_done(bot):
+def test_one_button_per_key_then_command_for_chosen_os(bot):
     b, tg = bot
     d = Driver(b)
-    d.cb("go")
-    assert "1 из 3 · ⚡ быстрый старт" in last(tg) and "Gemini" in last(tg)
+    d.cb("os:win")
+    assert "Ключ 1 из 3 · Google Gemini" in last(tg) and "/skip" in last(tg)
+    assert buttons(tg) == ["https://aistudio.google.com/apikey"], "одна кнопка — получить ключ"
     d.msg("bad-key")
     assert "сервис отверг ключ" in last(tg)
     assert ("deleteMessage", {"chat_id": CHAT, "message_id": 1}) in tg.calls
     d.msg("ok-gemini")
-    assert "Gemini (AI Studio)</b> подключён" in last(tg) and "OpenRouter" in last(tg)
-    d.cb("skip")
-    assert "NVIDIA" in last(tg)
+    assert "Gemini (AI Studio)</b> подключён" in last(tg) and "Ключ 2 из 3 · OpenRouter" in last(tg)
+    d.msg("/skip")
+    assert "Ключ 3 из 3 · NVIDIA" in last(tg)
     d.msg("nvapi-123")
-    assert "Быстрый старт пройден" in last(tg) and "ключей: <b>2</b>" in last(tg)
-    assert buttons(tg) == ["done", "more"]
-    d.cb("more")
-    assert "доп. 1 из" in last(tg)
-    assert b.store.get(CHAT)["more"] is True
-    d.cb("done")
     final = last(tg)
     code = re.search(r"NG-[0-9a-f]{8}-[A-Za-z0-9_-]+", final).group(0)
-    assert "ACCESS GRANTED · ключей: 2" in final and "neurogate import " + code in final
+    assert "Ключи готовы (2)" in final and "PowerShell" in final and "install.ps1" in final
+    assert "install.sh" not in final, "команда только под выбранный компьютер"
+    assert tg.sent[-1][1] is None, "в итоге нет кнопок"
     assert b.store.get(CHAT) is None, "сессия с ключами стёрта после выдачи"
     drop_id, secret = keydrop.parse_code(code)
     blob = b.store.take_drop(drop_id)
@@ -97,40 +94,66 @@ def test_quick_flow_checkpoint_more_and_done(bot):
     assert b.store.take_drop(drop_id) is None, "выдаётся один раз"
 
 
+def test_mac_command(bot):
+    b, tg = bot
+    d = Driver(b)
+    d.cb("os:mac")
+    d.msg("ok-gemini")
+    d.msg("/skip")
+    d.msg("/skip")
+    assert "Терминал" in last(tg) and "install.sh" in last(tg) and "install.ps1" not in last(tg)
+
+
+def test_all_quick_skipped_goes_to_spare_services(bot):
+    b, tg = bot
+    d = Driver(b)
+    d.cb("os:mac")
+    for _ in range(3):
+        d.msg("/skip")
+    assert "Ещё один ключ" in last(tg) and "Без ключа не обойтись" in last(tg)
+    d.msg("ok-spare")
+    assert "Ключи готовы (1)" in last(tg)
+
+
 def test_previous_card_buttons_removed(bot):
     b, tg = bot
     d = Driver(b)
-    d.cb("go")
+    d.cb("os:mac")
     first_card = 1000 + len(tg.sent)
-    d.cb("skip")
+    d.msg("/skip")
     assert ("editMessageReplyMarkup", {"chat_id": CHAT, "message_id": first_card,
                                       "reply_markup": {"inline_keyboard": []}}) in tg.calls
 
 
-def test_done_without_keys_and_status_and_reset(bot):
+def test_done_without_keys_status_reset_and_old_buttons(bot):
     b, tg = bot
     d = Driver(b)
     d.cb("done")
     assert "Нет ни одного ключа" in last(tg)
     d.msg("/status")
     assert "ни одного ключа" in last(tg)
-    d.cb("go")
+    d.cb("go")  # кнопка из старых сообщений бота — просто продолжаем
+    assert "Ключ 1 из 3" in last(tg)
     d.msg("ok-1")
     d.msg("/status")
-    assert "ключей: <b>1</b>" in last(tg)
+    assert "Ключей: <b>1</b>" in last(tg)
+    d.msg("/start")
+    assert "Ключей уже: <b>1</b>" in last(tg)
     d.msg("/reset")
-    assert b.store.get(CHAT) is None and "Быстрый старт" in last(tg)
+    assert b.store.get(CHAT) is None and "Какой у тебя компьютер" in last(tg)
 
 
 def test_cloudflare_asks_account_id(bot):
     b, tg = bot
     d = Driver(b)
     idx = next(i for i, s in enumerate(b.services) if s["id"] == "cloudflare")
-    b.store.put(CHAT, {"idx": idx, "pending_extra": None, "keys": {}, "more": True})
+    b.store.put(CHAT, {"idx": idx, "pending_extra": None, "keys": {}, "os": "mac"})
     d.msg("ok-cf-token")
     assert "Account ID" in last(tg)
     d.msg("acc-123")
-    keys = b.store.get(CHAT)["keys"]
+    code = re.search(r"NG-[0-9a-f]{8}-[A-Za-z0-9_-]+", last(tg)).group(0)
+    drop_id, secret = keydrop.parse_code(code)
+    keys = keydrop.unseal(secret, b.store.take_drop(drop_id))
     assert keys == {"CLOUDFLARE_API_KEY": "ok-cf-token", "CLOUDFLARE_ACCOUNT_ID": "acc-123"}
 
 
@@ -149,8 +172,8 @@ def test_store_migrates_old_schema_and_expires(tmp_path, monkeypatch):
     con.close()
     st = Store(str(db), Fernet.generate_key().decode())
     secret = "gsk_SUPER_SECRET_VALUE_123"
-    st.put(1, {"idx": 2, "pending_extra": None, "keys": {"A": secret}, "more": True})
-    assert st.get(1) == {"idx": 2, "pending_extra": None, "more": True, "keys": {"A": secret}}
+    st.put(1, {"idx": 2, "pending_extra": None, "keys": {"A": secret}, "os": "win"})
+    assert st.get(1) == {"idx": 2, "pending_extra": None, "os": "win", "keys": {"A": secret}}
     raw = sqlite3.connect(db).execute("SELECT keys_enc FROM sessions").fetchone()[0]
     assert secret not in raw, "ключи в базе зашифрованы"
     st.add_drop("abcd1234", "blob")

@@ -1,6 +1,6 @@
-"""Telegram-бот «ключи за пять минут»: ученик по очереди вставляет бесплатные ключи,
-бот проверяет каждый, удаляет сообщение с ключом и в конце выдаёт одну команду
-установки с одноразовым кодом (см. keydrop.py).
+"""Telegram-бот «ключи за пять минут»: ученик выбирает компьютер, вставляет 3 бесплатных
+ключа (быстрый старт каталога), бот проверяет каждый, удаляет сообщение с ключом и сразу
+выдаёт одну команду установки под его систему с одноразовым кодом (см. keydrop.py).
 
 Запуск: `neurogate bot` (TELEGRAM_MODE=polling локально, webhook на сервере).
 Окружение:
@@ -21,8 +21,8 @@ import logging
 import os
 import sqlite3
 import time
-from importlib import resources
 from contextlib import asynccontextmanager
+from importlib import resources
 from typing import Any
 
 import httpx
@@ -36,11 +36,8 @@ from neurogate.keydrop import DEFAULT_DROP_URL, new_code, seal
 log = logging.getLogger("neurogate.keybot")
 
 REPO_RAW = "https://raw.githubusercontent.com/NurTechKSA/neurogate/main"
-# Прямые ссылки на последнюю версию OpenCode Desktop — ученику не надо искать на сайте
-OPENCODE_DL = "https://opencode.ai/download/stable"
 DROP_TTL = 24 * 3600
 SESSION_TTL = 7 * 24 * 3600
-_PRIORITY_BADGE = {1: "⭐ начните с этого", 2: "➕ дополнительный", 3: "⚠️ с неудобствами"}
 
 
 # ---------------------------------------------------------------- storage
@@ -55,30 +52,34 @@ class Store:
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS drops (id TEXT PRIMARY KEY, blob TEXT NOT NULL, expires REAL NOT NULL)"
         )
-        try:  # миграция: флаг «добавить ещё ключи» после быстрого старта
-            self.db.execute("ALTER TABLE sessions ADD COLUMN more INTEGER NOT NULL DEFAULT 0")
-        except sqlite3.OperationalError:
-            pass  # колонка уже есть
+        # миграции: `more` — от прежнего «добавить ещё ключи» (больше не используется),
+        # `os` — компьютер ученика (mac | win), чтобы выдать одну нужную команду
+        for ddl in ("ALTER TABLE sessions ADD COLUMN more INTEGER NOT NULL DEFAULT 0",
+                    "ALTER TABLE sessions ADD COLUMN os TEXT"):
+            try:
+                self.db.execute(ddl)
+            except sqlite3.OperationalError:
+                pass  # колонка уже есть
         self.db.commit()
         self.f = Fernet(storage_key.encode())
 
     def get(self, chat_id: int) -> dict | None:
         row = self.db.execute(
-            "SELECT idx, pending_extra, keys_enc, more FROM sessions WHERE chat_id=?", (chat_id,)
+            "SELECT idx, pending_extra, keys_enc, os FROM sessions WHERE chat_id=?", (chat_id,)
         ).fetchone()
         if not row:
             return None
-        return {"idx": row[0], "pending_extra": row[1], "more": bool(row[3]),
+        return {"idx": row[0], "pending_extra": row[1], "os": row[3],
                 "keys": json.loads(self.f.decrypt(row[2].encode()))}
 
     def put(self, chat_id: int, s: dict) -> None:
         enc = self.f.encrypt(json.dumps(s["keys"]).encode()).decode()
         self.db.execute(
-            "INSERT INTO sessions (chat_id, idx, pending_extra, keys_enc, updated, more)"
+            "INSERT INTO sessions (chat_id, idx, pending_extra, keys_enc, updated, os)"
             " VALUES (?,?,?,?,?,?)"
             " ON CONFLICT(chat_id) DO UPDATE SET idx=excluded.idx, pending_extra=excluded.pending_extra,"
-            " keys_enc=excluded.keys_enc, updated=excluded.updated, more=excluded.more",
-            (chat_id, s["idx"], s.get("pending_extra"), enc, time.time(), int(bool(s.get("more")))),
+            " keys_enc=excluded.keys_enc, updated=excluded.updated, os=excluded.os",
+            (chat_id, s["idx"], s.get("pending_extra"), enc, time.time(), s.get("os")),
         )
         self.db.commit()
 
@@ -145,55 +146,33 @@ class KeyBot:
 
     # --- rendering
 
-    def _progress(self, keys: dict) -> str:
-        got = sum(1 for s in self.services if keys.get(s["env"]))
-        filled = min(10, round(got / 15 * 10))  # 15 ключей — «отлично», дальше полоса полная
-        return f"{'▰' * filled}{'▱' * (10 - filled)}  ключей: <b>{got}</b>"
+    def _got(self, keys: dict) -> int:
+        return sum(1 for s in self.services if keys.get(s["env"]))
 
-    def _position(self, idx: int) -> str:
-        if idx < self.quick_n:
-            return f"{idx + 1} из {self.quick_n} · ⚡ быстрый старт"
-        extra = len(self.services) - self.quick_n
-        return f"доп. {idx - self.quick_n + 1} из {extra} · {_PRIORITY_BADGE.get(self.services[idx]['priority'], '')}"
-
-    def _card(self, s: dict, idx: int, keys: dict, note: str = "") -> tuple[str, list[list[dict]]]:
+    def _card(self, s: dict, idx: int, note: str = "") -> tuple[str, list[list[dict]]]:
+        """Один ключ — одно сообщение и одна кнопка. Пропуск — командой /skip."""
         e = html.escape
+        head = f"Ключ {idx + 1} из {self.quick_n}" if idx < self.quick_n else "Ещё один ключ"
         steps = "\n".join(f"{i}. {e(step)}" for i, step in enumerate(s.get("steps", []), 1))
         text = (
-            f"🔑 <b>{e(s['name'])}</b>   <i>{self._position(idx)}</i>\n"
-            f"{self._progress(keys)}\n\n"
-            f"<b>Даёт:</b> {e(s['gives'])}\n"
-            f"<b>Лимит:</b> {e(s['limits'])}\n"
-            f"<b>Нужно:</b> {e(s['needs'])}\n\n"
-            f"<b>Как получить ключ:</b>\n{steps}\n\n"
-            "👇 Откройте страницу, создайте ключ и пришлите его сюда одним сообщением.\n"
-            "<i>Сообщение с ключом я сразу удалю из чата.</i>"
+            f"🔑 <b>{head} · {e(s['name'])}</b>\n\n"
+            f"Нажми «Получить ключ», потом:\n{steps}\n\n"
+            "👇 Пришли ключ сюда сообщением.\n"
+            f"<i>Нужно: {e(s['needs'])}. Не получается — /skip</i>"
         )
         if note:
             text = f"{note}\n\n{text}"
-        buttons = [
-            [{"text": "🌐 Открыть страницу ключа", "url": s["key_url"]}],
-            [{"text": "⏭ Пропустить", "callback_data": "skip"},
-             {"text": "✅ Хватит — выдать команду", "callback_data": "done"}],
-        ]
-        return text, buttons
+        return text, [[{"text": "🔑 Получить ключ", "url": s["key_url"]}]]
 
-    async def _show(self, chat_id: int, s_state: dict, note: str = "") -> None:
-        idx = s_state["idx"]
-        if idx >= len(self.services):
-            await self.finish(chat_id)
+    async def _show(self, chat_id: int, state: dict, note: str = "") -> None:
+        idx = state["idx"]
+        # Быстрые ключи пройдены и хоть один есть — сразу команда, без выбора «ещё / хватит»
+        if idx >= len(self.services) or (idx >= self.quick_n and self._got(state["keys"])):
+            await self.finish(chat_id, note)
             return
-        if idx == self.quick_n and not s_state.get("more"):
-            got = sum(1 for s in self.services if s_state["keys"].get(s["env"]))
-            head = f"{note}\n\n" if note else ""
-            await self._send_card(chat_id, (
-                f"{head}⚡ <b>Быстрый старт пройден</b> · ключей: <b>{got}</b>\n\n"
-                "Этого хватит, чтобы работать. Если позже начнёшь упираться в лимиты — вернись "
-                f"и добавь ещё: осталось {len(self.services) - self.quick_n} сервисов."),
-                [[{"text": "✅ Выдать команду установки", "callback_data": "done"}],
-                 [{"text": "➕ Добавить ещё ключи", "callback_data": "more"}]])
-            return
-        text, buttons = self._card(self.services[idx], idx, s_state["keys"], note)
+        if idx >= self.quick_n and not note:
+            note = "Без ключа не обойтись — попробуй этот сервис."
+        text, buttons = self._card(self.services[idx], idx, note)
         await self._send_card(chat_id, text, buttons)
 
     async def _send_card(self, chat_id: int, text: str, buttons: list[list[dict]]) -> None:
@@ -209,70 +188,78 @@ class KeyBot:
 
     async def start(self, chat_id: int) -> None:
         state = self.store.get(chat_id)
-        have = len(state["keys"]) if state else 0
+        have = self._got(state["keys"]) if state else 0
         text = (
-            "<code>&gt; neurogate --access free</code>\n"
-            "⚡ <b>ДОСТУП К ИИ: уровень 2 «Прокачка»</b>\n\n"
-            "Соберём ваши бесплатные ключи от сервисов ИИ (Gemini, OpenRouter, Groq, NVIDIA и ещё "
-            f"{len(self.services) - 4}). Потом одна команда — и у вас на компьютере ИИ пишет код "
-            "<b>в приложении OpenCode</b> (окно, как у Claude и ChatGPT) или в Claude Code — "
-            "на бесплатных моделях, без подписок и карт.\n\n"
-            "Как это идёт:\n"
-            "1️⃣ Я показываю сервис и ссылку — вы создаёте ключ (1–2 минуты)\n"
-            "2️⃣ Присылаете ключ сюда — я проверяю и удаляю сообщение\n"
-            "3️⃣ Жмёте «Выдать команду» — вставляете её в терминал\n\n"
-            "⚡ <b>Быстрый старт — 3 ключа, ~5 минут</b> (Gemini, OpenRouter, NVIDIA — вход через Google). "
-            "Потом можно добавить ещё, если будет мало.\n\n"
-            "🔒 Ключи хранятся зашифрованными и стираются с сервера, как только установщик их заберёт.\n\n"
-            "📖 Вся инструкция и уровень 1 (без ключей): https://neurogate.nurtech.dev"
+            "⚡ <b>Бесплатный ИИ-программист за 5 минут</b>\n\n"
+            f"Соберём {self.quick_n} бесплатных ключа — потом дам одну команду, она всё настроит сама. "
+            "Карта не нужна.\n\n"
         )
-        buttons = [[{"text": "🚀 Начать", "callback_data": "go"}]]
         if have:
-            buttons = [[{"text": f"▶️ Продолжить (ключей: {have})", "callback_data": "go"}],
-                       [{"text": "✅ Выдать команду", "callback_data": "done"},
-                        {"text": "🔄 Начать заново", "callback_data": "reset"}]]
-        await self.tg.send(chat_id, text, buttons)
+            text += f"Ключей уже: <b>{have}</b> — продолжим с того же места.\n\n"
+        text += "Какой у тебя компьютер?"
+        await self._send_card(chat_id, text, [[{"text": "🍏 Mac", "callback_data": "os:mac"},
+                                               {"text": "🪟 Windows", "callback_data": "os:win"}]])
 
     async def status(self, chat_id: int) -> None:
         state = self.store.get(chat_id)
         keys = state["keys"] if state else {}
         got = [s["name"] for s in self.services if keys.get(s["env"])]
-        text = "Пока ни одного ключа. Нажмите /start." if not got else (
-            f"{self._progress(keys)}\n\n" + "\n".join(f"✅ {html.escape(n)}" for n in got)
+        text = "Пока ни одного ключа. Нажми /start." if not got else (
+            f"Ключей: <b>{len(got)}</b>\n\n" + "\n".join(f"✅ {html.escape(n)}" for n in got)
         )
         await self.tg.send(chat_id, text)
 
-    async def finish(self, chat_id: int) -> None:
+    async def skip(self, chat_id: int) -> None:
+        state = self.store.get(chat_id)
+        if not state:
+            await self.start(chat_id)
+            return
+        state["idx"] += 1
+        state["pending_extra"] = None
+        self.store.put(chat_id, state)
+        await self._show(chat_id, state)
+
+    def _install_steps(self, os_name: str | None, code: str) -> str:
+        drop_env = "" if self.drop_url == DEFAULT_DROP_URL else f"NEUROGATE_DROP_URL={self.drop_url} "
+        mac = f"<code>curl -fsSL {REPO_RAW}/install.sh | {drop_env}NEUROGATE_CODE={code} bash</code>"
+        win = f"<code>$env:NEUROGATE_CODE=\"{code}\"; irm {REPO_RAW}/install.ps1 | iex</code>"
+        if os_name == "win":
+            return (
+                "1. Нажми <b>Пуск</b>, набери «PowerShell», нажми Enter\n"
+                "2. Вставь команду (правый клик) и нажми Enter:\n"
+                f"{win}\n"
+                "3. Жди надпись <b>ACCESS GRANTED</b> (3–5 минут) — установщик сам поставит OpenCode\n"
+                "4. Открой OpenCode и выбери папку для проекта — любую, хоть новую пустую на рабочем столе\n"
+                "5. Внизу список моделей → <b>«+»</b> → <b>neurogate</b> → вставь ключ, "
+                "который установщик напечатал в конце. Пиши задачу."
+            )
+        if os_name == "mac":
+            return (
+                "1. Нажми <b>⌘ + Пробел</b>, набери «Терминал», нажми Enter\n"
+                "2. Вставь команду (⌘ + V) и нажми Enter:\n"
+                f"{mac}\n"
+                "3. Жди надпись <b>ACCESS GRANTED</b> (3–5 минут) — установщик сам поставит OpenCode\n"
+                "4. Открой OpenCode и выбери папку для проекта — любую, хоть новую пустую на рабочем столе\n"
+                "5. Пиши задачу — модель neurogate уже выбрана."
+            )
+        # Сессия до выбора компьютера (старые кнопки) — обе команды
+        return f"🍏 Mac — в Терминал:\n{mac}\n\n🪟 Windows — в PowerShell:\n{win}"
+
+    async def finish(self, chat_id: int, note: str = "") -> None:
         state = self.store.get(chat_id)
         keys = state["keys"] if state else {}
         if not keys:
-            await self.tg.send(chat_id, "Нет ни одного ключа. Нужен хотя бы один — лучше Gemini или Groq. /start",
-                               [[{"text": "▶️ К ключам", "callback_data": "go"}]])
+            await self.tg.send(chat_id, "Нет ни одного ключа — без него не настроить. Нажми /start.")
             return
         drop_id, secret, code = new_code()
         self.store.add_drop(drop_id, seal(secret, keys))
         self.store.drop_session(chat_id)
-        names = ", ".join(s["name"] for s in self.services if keys.get(s["env"]))
-        drop_env = "" if self.drop_url == DEFAULT_DROP_URL else f"NEUROGATE_DROP_URL={self.drop_url} "
+        head = f"{note}\n\n" if note else ""
         text = (
-            f"🔓 <b>ACCESS GRANTED · ключей: {sum(1 for s in self.services if keys.get(s['env']))}</b>\n"
-            f"<i>{html.escape(names)}</i>\n\n"
-            "🍏 <b>Mac / Linux</b> — откройте «Терминал», вставьте и нажмите Enter:\n"
-            f"<code>curl -fsSL {REPO_RAW}/install.sh | {drop_env}NEUROGATE_CODE={code} bash</code>\n\n"
-            "🪟 <b>Windows</b> — откройте PowerShell, вставьте и нажмите Enter:\n"
-            f"<code>$env:NEUROGATE_CODE=\"{code}\"; irm {REPO_RAW}/install.ps1 | iex</code>\n\n"
-            "♻️ <b>neurogate уже стоит?</b> Тогда достаточно:\n"
-            f"<code>neurogate import {code}</code>\n\n"
-            "⏳ Код срабатывает один раз и живёт 24 часа. Никому его не пересылайте.\n\n"
-            "<b>Дальше:</b>\n"
-            "⭐ Скачайте приложение OpenCode: "
-            f"<a href=\"{OPENCODE_DL}/darwin-aarch64-dmg\">Mac (M1–M5)</a> · "
-            f"<a href=\"{OPENCODE_DL}/darwin-x64-dmg\">Mac Intel</a> · "
-            f"<a href=\"{OPENCODE_DL}/windows-x64-nsis\">Windows</a>. "
-            "Откройте папку проекта и пишите задачу в чат — модель «neurogate/code» уже выбрана.\n"
-            "💻 Или в терминале: <code>claude-free</code> — Claude Code на бесплатных моделях.\n\n"
-            "🩺 Что-то не так? <code>neurogate doctor</code> — проверит всё и скажет, как починить.\n"
-            "📖 Инструкция: https://neurogate.nurtech.dev · ещё ключей — снова /start."
+            f"{head}🔓 <b>Ключи готовы ({self._got(keys)}). Последний шаг:</b>\n\n"
+            f"{self._install_steps(state.get('os'), code)}\n\n"
+            "<i>Команда одноразовая и работает 24 часа — никому не пересылай.</i>\n"
+            "Что-то не так — набери в терминале <code>neurogate doctor</code>."
         )
         await self.tg.send(chat_id, text)
 
@@ -280,30 +267,23 @@ class KeyBot:
 
     async def on_callback(self, cq: dict) -> None:
         chat_id = cq["message"]["chat"]["id"]
-        data = cq.get("data")
+        data = cq.get("data") or ""
         await self.tg.call("answerCallbackQuery", callback_query_id=cq["id"])
-        # Карточка, на которой нажали кнопку, больше не нужна — убираем кнопки
+        # Сообщение, на котором нажали кнопку, больше не нужно — убираем кнопки
         await self.tg.call("editMessageReplyMarkup", chat_id=chat_id,
                            message_id=cq["message"]["message_id"], reply_markup={"inline_keyboard": []})
         state = self.store.get(chat_id) or {"idx": 0, "pending_extra": None, "keys": {}}
-        if data == "reset":
-            self.store.drop_session(chat_id)
-            state = {"idx": 0, "pending_extra": None, "keys": {}}
-            data = "go"
-        if data == "go":
-            self.store.put(chat_id, state)
-            await self._show(chat_id, state)
-        elif data == "more":
-            state["more"] = True
+        if data.startswith("os:"):
+            state["os"] = data[3:]
             self.store.put(chat_id, state)
             await self._show(chat_id, state)
         elif data == "skip":
-            state["idx"] += 1
-            state["pending_extra"] = None
-            self.store.put(chat_id, state)
-            await self._show(chat_id, state)
+            await self.skip(chat_id)
         elif data == "done":
             await self.finish(chat_id)
+        else:  # кнопки старых сообщений («Начать», «Ещё ключи»…) — просто продолжаем
+            self.store.put(chat_id, state)
+            await self._show(chat_id, state)
 
     async def on_message(self, msg: dict) -> None:
         chat_id = msg["chat"]["id"]
@@ -315,6 +295,9 @@ class KeyBot:
             return
         if text in ("/status", "/keys"):
             await self.status(chat_id)
+            return
+        if text == "/skip":
+            await self.skip(chat_id)
             return
         if text == "/done":
             await self.finish(chat_id)
@@ -343,7 +326,7 @@ class KeyBot:
         ok, why = await asyncio.to_thread(check_key, s, text)
         if ok is False:
             await self.tg.send(chat_id, f"❌ <b>{html.escape(s['name'])}</b>: {html.escape(why)}.\n"
-                                        "Скопируйте ключ целиком и пришлите ещё раз — или «Пропустить» выше.")
+                                        "Скопируй ключ целиком и пришли ещё раз. Не получается — /skip")
             return
         state["keys"][s["env"]] = text
         extra = next(iter(s.get("extra_env", [])), None)
@@ -354,13 +337,7 @@ class KeyBot:
             return
         state["idx"] += 1
         self.store.put(chat_id, state)
-        mark = "✅" if ok else "☑️"
-        suffix = "" if ok else " <i>(у сервиса нет автопроверки — сохранил как есть)</i>"
-        note = f"{mark} <b>{html.escape(s['name'])}</b> подключён{suffix}"
-        got = sum(1 for x in self.services if state["keys"].get(x["env"]))
-        if got == 10:
-            note += "\n\n🔥 <b>10 ключей — режим «без пауз».</b> Можно выдавать команду."
-        await self._show(chat_id, state, note)
+        await self._show(chat_id, state, f"✅ <b>{html.escape(s['name'])}</b> подключён")
 
     async def on_update(self, update: dict) -> None:
         try:
@@ -414,9 +391,8 @@ def create_bot_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await tg.call("setMyCommands", commands=[
-            {"command": "start", "description": "Собрать бесплатные ключи"},
-            {"command": "status", "description": "Какие ключи уже есть"},
-            {"command": "done", "description": "Выдать команду установки"},
+            {"command": "start", "description": "Настроить бесплатный ИИ"},
+            {"command": "skip", "description": "Пропустить этот ключ"},
             {"command": "reset", "description": "Начать заново"},
         ])
         task = None

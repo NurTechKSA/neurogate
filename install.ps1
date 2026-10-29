@@ -148,6 +148,23 @@ else {
     Write-Host "Пришлите этот вывод или запустите: neurogate doctor"
 }
 
+# OpenCode ставим сами и без вопросов (/S) — ученику не надо ничего скачивать и запускать.
+$ocPaths = @("$env:LOCALAPPDATA\Programs\OpenCode\OpenCode.exe", "$env:ProgramFiles\OpenCode\OpenCode.exe")
+if (-not ($ocPaths | Where-Object { Test-Path $_ })) {
+    Say "Приложение OpenCode (~260 МБ, 1–3 минуты)"
+    $ocArch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "windows-aarch64-nsis" } else { "windows-x64-nsis" }
+    $ocUrl = "https://opencode.ai/download/stable/$ocArch"
+    $ocExe = Join-Path $env:TEMP "OpenCode-Setup.exe"
+    try {
+        Invoke-WebRequest -UseBasicParsing $ocUrl -OutFile $ocExe
+        Start-Process $ocExe -ArgumentList "/S" -Wait
+        if ($ocPaths | Where-Object { Test-Path $_ }) { Write-Host "OpenCode установлен." }
+        else { Write-Host "Открываю установщик OpenCode — нажмите «Установить»."; Start-Process $ocExe }
+    } catch {
+        Write-Host "OpenCode не скачался — скачайте сами: $ocUrl"
+    }
+}
+
 Say "6/6 Подключение программ"
 # .cmd читается в кодировке консоли — кириллицу из имени пользователя заменяем на %USERPROFILE%.
 function CmdPath($p) { if ($p.StartsWith($HOME, [StringComparison]::OrdinalIgnoreCase)) { "%USERPROFILE%" + $p.Substring($HOME.Length) } else { $p } }
@@ -183,9 +200,8 @@ Write-Host @"
 
 ACCESS GRANTED. Всё бесплатно, подписки не нужны.
 
-  * Приложение OpenCode (окно, как у Claude/ChatGPT):
-     скачайте (ссылка ниже) -> откройте -> выберите папку проекта -> пишите задачу.
-     Один раз подключите neurogate: список моделей -> «+» -> neurogate (бесплатно) -> ключ выше.
+  * Откройте приложение OpenCode. Один раз подключите neurogate:
+     список моделей -> «+» -> neurogate (бесплатно) -> вставьте ключ выше. Пишите задачу.
   Панель и тестовый чат:   http://127.0.0.1:$Port/dashboard
   Claude Code в терминале: claude-free
   Codex бесплатно:         codex-free
@@ -196,14 +212,5 @@ ACCESS GRANTED. Всё бесплатно, подписки не нужны.
   Что-то не так?           neurogate doctor
   Инструкция:              https://neurogate.nurtech.dev
 "@
-$ocPaths = @("$env:LOCALAPPDATA\Programs\OpenCode\OpenCode.exe", "$env:ProgramFiles\OpenCode\OpenCode.exe")
-if (-not ($ocPaths | Where-Object { Test-Path $_ })) {
-    # Прямая ссылка на установщик — ученику не надо искать нужный файл на сайте.
-    $ocArch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "windows-aarch64-nsis" } else { "windows-x64-nsis" }
-    $ocUrl = "https://opencode.ai/download/stable/$ocArch"
-    Write-Host "`nOpenCode ещё не установлен — скачиваю установщик: $ocUrl"
-    Write-Host "Когда скачается — запустите его."
-    Start-Process $ocUrl
-}
 Pop-Location
 }

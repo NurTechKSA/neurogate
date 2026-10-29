@@ -144,6 +144,24 @@ if [ -z "${NEUROGATE_NO_AUTOSTART:-}" ]; then
   fi
 fi
 
+# OpenCode ставим до подключения: `connect opencode` входит в провайдер через CLI самого
+# приложения — без него neurogate не появится в окне. Ученику ничего не надо скачивать руками.
+if [ "$(uname)" = "Darwin" ] && [ ! -d /Applications/OpenCode.app ] && [ ! -d "$HOME/Applications/OpenCode.app" ]; then
+  say "Приложение OpenCode (~300 МБ)"
+  case "$(uname -m)" in arm64) OC_ARCH=darwin-aarch64-dmg ;; *) OC_ARCH=darwin-x64-dmg ;; esac
+  OC_TMP="$(mktemp -d)"
+  if curl -fL --progress-bar -o "$OC_TMP/OpenCode.dmg" "https://opencode.ai/download/stable/$OC_ARCH" \
+     && mkdir -p "$OC_TMP/mnt" \
+     && hdiutil attach -nobrowse -readonly -quiet -mountpoint "$OC_TMP/mnt" "$OC_TMP/OpenCode.dmg" \
+     && cp -R "$OC_TMP/mnt/OpenCode.app" /Applications/; then
+    echo "OpenCode установлен в «Программы»."
+  else
+    echo "OpenCode не поставился сам — скачайте: https://opencode.ai/download/stable/$OC_ARCH"
+  fi
+  hdiutil detach -quiet "$OC_TMP/mnt" 2>/dev/null || true
+  rm -rf "$OC_TMP"
+fi
+
 say "6/6 Подключение программ"
 # Короткая команда `neurogate` из любой папки — до подключения программ, чтобы их сбой не
 # оставил без команды. Сразу из .venv, без `uv run`: в песочнице Codex uv падает — ему
@@ -179,9 +197,7 @@ cat <<EOF
 
 🔓 ACCESS GRANTED. Всё бесплатно, подписки не нужны.
 
-  ⭐ Приложение OpenCode (окно, как у Claude/ChatGPT):
-     скачайте https://opencode.ai/download → откройте → выберите папку проекта → пишите задачу.
-     Модель «neurogate/code» уже выбрана.
+  ⭐ Откройте приложение OpenCode и пишите задачу — модель «neurogate» уже выбрана.
   Claude Code в терминале: claude-free
   Codex бесплатно:         codex-free
   Панель и тестовый чат:   http://127.0.0.1:$PORT/dashboard
@@ -192,11 +208,6 @@ cat <<EOF
   Что-то не так?           neurogate doctor
   Инструкция:              https://neurogate.nurtech.dev
 EOF
-if [ "$(uname)" = "Darwin" ] && [ ! -d /Applications/OpenCode.app ]; then
-  echo
-  echo "OpenCode ещё не установлен — открываю страницу скачивания…"
-  open "https://opencode.ai/download" 2>/dev/null || true
-fi
 if [ -n "${NEW_PATH:-}" ]; then
   echo
   echo "⚠ Откройте НОВОЕ окно терминала — в этом команды neurogate и claude-free ещё не видны."
