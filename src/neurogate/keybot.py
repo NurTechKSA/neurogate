@@ -156,8 +156,8 @@ class KeyBot:
         steps = "\n".join(f"{i}. {e(step)}" for i, step in enumerate(s.get("steps", []), 1))
         text = (
             f"🔑 <b>{head} · {e(s['name'])}</b>\n\n"
-            f"Нажми «Получить ключ», потом:\n{steps}\n\n"
-            "👇 Пришли ключ сюда сообщением.\n"
+            f"Кнопка «Получить ключ» откроет сайт {e(s['name'].split(' (')[0])}. Там:\n{steps}\n\n"
+            "👇 Вернись в этот чат и пришли ключ сообщением — дальше всё сделаю я.\n"
             f"<i>Нужно: {e(s['needs'])}. Не получается — /skip</i>"
         )
         if note:

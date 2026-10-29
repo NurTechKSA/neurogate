@@ -33,13 +33,13 @@ services:
     priority: 1
     gives: сильный код, длинный контекст (1М токенов), картинки на вход, веб-поиск
     limits: 10 запросов/мин, 250–1500 запросов/день
-    needs: Google-аккаунт; из РФ нужен VPN при регистрации
+    needs: Google-аккаунт; из РФ — с включённым VPN
     signup: https://aistudio.google.com
     key_url: https://aistudio.google.com/apikey
     steps:
-      - Войдите Google-аккаунтом
-      - Нажмите «Create API key» → выберите или создайте проект
-      - Скопируйте ключ (начинается с AIza)
+      - Войдите своим Google-аккаунтом
+      - Нажмите синюю кнопку «Create API key» (спросит проект — «Create project»)
+      - Скопируйте ключ — длинная строка, начинается с AQ. или AIza
     check: {url: "https://generativelanguage.googleapis.com/v1beta/models", auth: query, param: key}
 
   - id: openrouter
